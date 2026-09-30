@@ -21,6 +21,7 @@ permitted axioms of `profile/AXIOM_POLICY.md`.
 #print axioms P10S2.coverage_halt_no_verdict
 #print axioms P10S2.unavailable_row_no_verdict
 #print axioms P10S2.unavailable_payload_no_verdict
+#print axioms P10S2.e2eCheck_of_parts
 #print axioms P10S2.e2eCheck_sound
 #print axioms P10S2.unavailable_key_no_verdict
 #print axioms P10S2.missing_checkpoint_halts

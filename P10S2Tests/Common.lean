@@ -34,4 +34,12 @@ def runE2E (tDigest tB pB iB instB : Bytes) :
     Option (P10.S1.Evidence × P10.S1.Claim) :=
   (decodeInst instB).bind fun inst => e2eCheck tDigest tB pB iB inst
 
+/-- `runE2E` on an instance fixture that decodes to `inst` (generic; no computation). -/
+theorem runE2E_of_inst {tDigest tB pB iB instB : Bytes} {inst : InstanceCommitment}
+    (h : decodeInst instB = some inst) :
+    runE2E tDigest tB pB iB instB = e2eCheck tDigest tB pB iB inst := by
+  unfold runE2E
+  rw [h]
+  rfl
+
 end P10S2Tests

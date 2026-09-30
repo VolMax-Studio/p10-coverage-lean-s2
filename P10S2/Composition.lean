@@ -148,6 +148,24 @@ def e2eCheck (tDigest tB pB iB : Bytes) (inst : InstanceCommitment) :
       | .halt _ => none
   else none
 
+/-- `e2eCheck` from its already-established parts (transcript digest, transcript decoding and the
+coverage outcome): the remaining S1 part is the explicit tail. Used by the concrete end-to-end
+vectors, whose kernel evaluations are split over modules. -/
+theorem e2eCheck_of_parts {tDigest tB pB iB : Bytes} {inst : InstanceCommitment}
+    {T : Transcript fx.Item} {e : P10.S1.Evidence}
+    (hD : sha256 tB = tDigest) (hT : decodeTranscript fxItemC tB = some T)
+    (hC : coverageCheck fx inst pB T = .accept e) :
+    e2eCheck tDigest tB pB iB inst =
+      (match P10.Wire.decode iB with
+        | none => none
+        | some si =>
+          if (decide (si.evidence = e) && decide (claimDigestV0 si.claim = inst.claimDigest) &&
+              P10.Wire.check iB) = true then some (e, si.claim) else none) := by
+  unfold e2eCheck
+  rw [if_pos hD, hT]
+  simp only []
+  rw [hC]
+
 /-- **Checker-owned proposition**: `hEv`, `hC`, the S1 statement and the transcript digest are all
 established by computation; only `TranscriptFaithful` (TB2) remains a premise. -/
 theorem e2eCheck_sound {tDigest tB pB iB : Bytes} {inst : InstanceCommitment}
