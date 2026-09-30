@@ -1,0 +1,7 @@
+id: X8
+prereg: addition (adjudication not owner-signed)
+condition: C11
+lean: .halt .c11_noAdjudicationAfterClosure
+tb7: -
+e2e: -
+note: 

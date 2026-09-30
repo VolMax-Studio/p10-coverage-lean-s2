@@ -1,0 +1,7 @@
+id: N19
+prereg: S2-N19
+condition: C1
+lean: .reject .c1_profileDigest
+tb7: -
+e2e: -
+note: 

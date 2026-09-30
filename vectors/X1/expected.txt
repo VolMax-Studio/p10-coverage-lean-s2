@@ -1,0 +1,7 @@
+id: X1
+prereg: addition
+condition: C1
+lean: .reject .c1_admitterSetDigest
+tb7: -
+e2e: -
+note: 

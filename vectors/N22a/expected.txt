@@ -1,0 +1,7 @@
+id: N22a
+prereg: S2-N22 (fixture_id)
+condition: C1
+lean: .reject .c1_profileFields
+tb7: -
+e2e: -
+note: 

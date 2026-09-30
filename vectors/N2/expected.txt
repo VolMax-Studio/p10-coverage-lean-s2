@@ -1,0 +1,7 @@
+id: N2
+prereg: S2-N2
+condition: C7
+lean: .reject .c7_refsNotStrictlyAscending
+tb7: -
+e2e: -
+note: 

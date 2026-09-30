@@ -1,0 +1,7 @@
+id: N7b
+prereg: S2-N7 (checkpoint material missing)
+condition: TB5
+lean: .halt .tb5_checkpointMaterialUnavailable
+tb7: -
+e2e: -
+note: 

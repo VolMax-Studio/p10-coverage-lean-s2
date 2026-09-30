@@ -1,0 +1,7 @@
+id: N13a
+prereg: S2-N13 (profile commitment absent)
+condition: C3
+lean: .halt .c3_noProfileCommitment
+tb7: -
+e2e: -
+note: 

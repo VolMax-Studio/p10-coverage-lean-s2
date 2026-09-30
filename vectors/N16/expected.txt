@@ -1,0 +1,7 @@
+id: N16
+prereg: S2-N16
+condition: C2
+lean: .halt .c2_rowUnavailable
+tb7: -
+e2e: -
+note: 

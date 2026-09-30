@@ -1,0 +1,7 @@
+id: N23c
+prereg: S2-N23 (non-canonical encoding)
+condition: C1
+lean: .reject .c1_profileDecode
+tb7: -
+e2e: -
+note: 

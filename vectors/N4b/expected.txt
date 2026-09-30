@@ -1,0 +1,7 @@
+id: N4b
+prereg: S2-N4 (uncited)
+condition: accept
+lean: .accept (.obs false none)
+tb7: -
+e2e: -
+note: 

@@ -1,0 +1,7 @@
+id: P2x
+prereg: S2-P2 (literal scenario, no adjudication)
+condition: C11
+lean: .halt .c11_noAdjudicationAfterClosure
+tb7: -
+e2e: -
+note: PREREG CONFLICT: P2 lists no adjudication but C11 requires one; see README

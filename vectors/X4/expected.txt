@@ -1,0 +1,7 @@
+id: X4
+prereg: addition (two valid closures)
+condition: C6
+lean: .reject .c6_multipleClosures
+tb7: -
+e2e: -
+note: 

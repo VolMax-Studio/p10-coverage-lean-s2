@@ -1,0 +1,7 @@
+id: X5
+prereg: addition (empty closure)
+condition: C12
+lean: .reject .c12_evidenceOutsideE
+tb7: -
+e2e: -
+note: 

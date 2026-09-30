@@ -1,0 +1,7 @@
+id: P3
+prereg: S2-P3
+condition: accept
+lean: .accept P10.S1.Evidence.inconsistent
+tb7: -
+e2e: -
+note: masking control: conflicting admissions accepted as `inconsistent`; S1 cannot certify

@@ -1,0 +1,7 @@
+id: N18
+prereg: S2-N18
+condition: accept
+lean: .accept (.obs false none)
+tb7: -
+e2e: -
+note: 

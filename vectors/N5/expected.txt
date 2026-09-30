@@ -1,0 +1,7 @@
+id: N5
+prereg: S2-N5
+condition: C10
+lean: .reject .c10_relevantAdmissionAfterClosure
+tb7: -
+e2e: -
+note: 

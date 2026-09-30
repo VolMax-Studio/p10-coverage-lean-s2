@@ -1,25 +1,18 @@
-# Trust boundaries (DRAFT — not ratified)
+# Trust boundaries (S2a)
 
-- **TB0** Lean kernel/toolchain — inherited from S1, pinned (`lean-toolchain`).
-- **TB1** S1 semantics — S2 must not redefine `CertificateTargetV0`,
-  `Underdetermined`, `Compatible`, `Eval`, `Wπ`, `Eπ`.
-- **TB2** Authenticated transcript producer (S2b): COSE verification, payload
-  parsing, frozen key lookup, prefix replay, checkpoint verification, leaf
-  summaries. S2b attests *facts*; it must not decide authorization,
-  relevance, scope or closure validity, and must not drop entries.
-- **TB3** Transparency Service: checkpoint authenticity and VDS ordering are
-  assumed/externally verified, never promoted to Lean-proven facts.
-- **TB4** Identity/key resolution: frozen historical binding (digest in the
-  commitment); dynamic resolution inadmissible.
-- **TB5** Availability: missing leaf/header/payload ⇒ HALT, never evidence
-  absence.
-- **TB6 (reserved)** Closure/adjudication timing and selection of `S_R`. S2
-  claims completeness only through the committed `S_R`; nothing about later
-  registrations; no freshness guarantee unless the party with an omission
-  incentive does not control `S_R`.
+The authoritative statement is prereg v0.2.4 §4 (TB0–TB7). In this repository:
 
-## Completeness premise (to be made explicit in v0.2)
-
-"Authenticated" ≠ "complete subject view of the full prefix". Lean can only
-conclude completeness through `S_R` if the transcript binds (log id, size,
-root) and supplies coverage of every index in `[0, size(S_R))`.
+- **TB0** Lean kernel and toolchain: pinned `leanprover/lean4:v4.33.0` (conda-forge build
+  `h6c1889d_0`; the `lean` executable digest is pinned in `scripts/s2a.py` and recorded in the
+  verifier manifest).
+- **TB1** S1 semantics: untouched; the frozen ratified tag is required (`S1_DEPENDENCY.md`).
+- **TB2** Transcript producer (S2b, not authorized here): supplies observations only. Lean decides
+  authorization, relevance, lifecycle validity, closure validity, REJECT vs HALT.
+  `TranscriptFaithful T V` is the only premise linking `T` to the real log (`CoverageSpec.lean`).
+- **TB3** Transparency service non-equivocation: assumed.
+- **TB4** Key resolution: `KeyResolutionV0` lives in `pB`, bound by `profile_digest`;
+  `authorized_admitter_set_digest` remains an `iss`-set digest (interpretation I-4).
+- **TB5** Availability: any unavailable row / subject payload / authorized key → HALT; never
+  evidence of absence.
+- **TB6** Checkpoint selection and freshness: no claim about leaves at `idx ≥ size(S_R)`.
+- **TB7** Verifier identity: `scripts/s2a.py tb7` (harness), not a Lean theorem.

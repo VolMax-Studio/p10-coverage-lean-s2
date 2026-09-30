@@ -1,0 +1,7 @@
+id: X7
+prereg: addition (ref to an admission after the closure)
+condition: C9
+lean: .reject .c9_refsNotExactRelevantSet
+tb7: -
+e2e: -
+note: 

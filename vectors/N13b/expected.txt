@@ -1,0 +1,7 @@
+id: N13b
+prereg: S2-N13 (profile commitment after first admission)
+condition: C3
+lean: .reject .c3_profileAfterFirstAdmission
+tb7: -
+e2e: -
+note: 
