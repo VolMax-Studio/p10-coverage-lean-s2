@@ -137,8 +137,19 @@ inductive RejectReason
   | c1_profileDigest
   | c1_profileDecode
   | c1_profileFields
-  | c1_keyResolutionDigest
-  | c1_admitterSetDigest
+  | c1a_ownerNotIssuer
+  | c1a_issuerNotToken
+  | c1a_subjectDerivation
+  | c1_ownerInAdmitters
+  | c1b_admittersDigest
+  | c1b_keyResolutionDigest
+  | c1c_subjectDerivationDigest
+  | c1c_leafEncodingProfileDigest
+  | c1c_evidenceScopeDigest
+  | c1c_admissionRuleDigest
+  | c1c_coverageRuleDigest
+  | c3_multipleProfileCommitments
+  | c3_profileDigestMismatch
   | c3_profileAfterFirstAdmission
   | c4_multipleCommitments
   | c4_commitmentMismatch
@@ -149,7 +160,9 @@ inductive RejectReason
   | c8_refNotRelevantAdmission
   | c9_refsNotExactRelevantSet
   | c10_relevantAdmissionAfterClosure
+  | c11_adjudicationRefsMismatch
   | c12_evidenceOutsideE
+  | c13_closedEvidenceDigest
   deriving DecidableEq, Repr
 
 /-- HALT reasons: unavailable verification input, never negative evidence. -/

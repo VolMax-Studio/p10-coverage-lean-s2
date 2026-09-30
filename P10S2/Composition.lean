@@ -34,9 +34,6 @@ def fxItemC : Codec FxItem :=
     (by intro a; cases a <;> rfl)
     (by intro b; rcases b with b | b <;> rfl)
 
-/-- Digest of the S1 canonical claim token bytes (prereg §6a). -/
-def claimDigest (c : P10.S1.Claim) : Digest := ⟨sha256 (P10.Wire.claimTok c)⟩
-
 /-- **`s2_end_to_end`** (prereg §9). -/
 theorem s2_end_to_end
     {tB pB iB : Bytes} {inst : InstanceCommitment} {T : Transcript fx.Item}
@@ -49,7 +46,7 @@ theorem s2_end_to_end
     (hS1 : P10.Bound iB (sha256 iB))
     (hDec : P10.Wire.decode iB = some si)
     (hEv : si.evidence = e)
-    (hC : si.claim = c ∧ claimDigest c = inst.claimDigest) :
+    (hC : si.claim = c ∧ claimDigestV0 c = inst.claimDigest) :
     CoverageSpecV fx inst pB V e ∧ encodeTranscript fxItemC T = tB ∧
     inst.profileDigest.bytes = sha256 pB ∧ prof.fixtureId.1 = fx.fixtureId ∧
     P10.Underdetermined P10.S1.profile e c := by
@@ -60,7 +57,7 @@ theorem s2_end_to_end
     rw [hPB] at hp'
     have : prof = prof' := Option.some.inj hp'
     subst this
-    exact hfx
+    exact hfx.fixture
   · have hu := P10.Wire.holds_underdetermined hDec hS1.holds
     rw [hEv, hC.1] at hu
     exact hu
@@ -145,7 +142,7 @@ def e2eCheck (tDigest tB pB iB : Bytes) (inst : InstanceCommitment) :
         | none => none
         | some si =>
           let e' : P10.S1.Evidence := e
-          if decide (si.evidence = e') && decide (claimDigest si.claim = inst.claimDigest) &&
+          if decide (si.evidence = e') && decide (claimDigestV0 si.claim = inst.claimDigest) &&
               P10.Wire.check iB then some (e', si.claim) else none
       | .reject _ => none
       | .halt _ => none
@@ -160,7 +157,7 @@ theorem e2eCheck_sound {tDigest tB pB iB : Bytes} {inst : InstanceCommitment}
     ∃ (T : Transcript fx.Item), decodeTranscript fxItemC tB = some T ∧
       encodeTranscript fxItemC T = tB ∧
       coverageCheck fx inst pB T = .accept e ∧
-      claimDigest c = inst.claimDigest ∧
+      claimDigestV0 c = inst.claimDigest ∧
       P10.Bound iB (sha256 iB) ∧
       P10.Underdetermined P10.S1.profile e c ∧
       ∀ V : LogView fx.Item, TranscriptFaithful T V → CoverageSpecV fx inst pB V e := by
@@ -200,7 +197,7 @@ theorem unavailable_key_no_verdict (π : AdmissionProfile) (inst : InstanceCommi
     (pB : Bytes) (T : Transcript π.Item) (s : π.Evidence → Bool) (prof : ProfileArtifact)
     (hp : decodeProfileArtifact pB = some prof)
     (hu : ∃ d ∈ T.detailed,
-      authorizedIss ⟨π.admissible, inst, admittersOf inst.instanceOwnerIss prof.keyResolution⟩
+      authorizedIss ⟨π.admissible, inst, admitterIss prof⟩
         d.iss = true ∧ d.sig = .keyUnavailable) :
     p10Verdict s (coverageCheck π inst pB T) = none := by
   cases hv : p10Verdict s (coverageCheck π inst pB T) with
@@ -208,7 +205,7 @@ theorem unavailable_key_no_verdict (π : AdmissionProfile) (inst : InstanceCommi
   | some v =>
     obtain ⟨e, he, _⟩ := p10Verdict_some hv
     have hsnd := coverage_sound π inst pB T e he
-    obtain ⟨prof', hp', _, _, _, _, _, hkeys, _⟩ := hsnd.profile
+    obtain ⟨prof', hp', _, _, hkeys, _⟩ := hsnd.profile
     rw [hp] at hp'
     have hpp : prof = prof' := Option.some.inj hp'
     subst hpp

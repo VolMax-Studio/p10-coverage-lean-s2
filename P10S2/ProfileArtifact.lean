@@ -10,8 +10,9 @@ nested `key_resolution` object whose keys are strictly ascending. The decoder ac
 exactly one shape: a missing, extra, duplicated, reordered or otherwise non-canonical
 field is a decode failure. General laws: `decode_encode_profile`, `encode_decode_profile`.
 
-The three constant fields (`artifact_version`, `leaf_encoding`, `log_identity_scheme`)
-are part of the literal skeleton; any other value fails to decode.
+The four constant fields (`artifact_version`, `leaf_encoding`, `log_identity_scheme`,
+`subject_derivation`) are part of the literal skeleton; any other value fails to decode.
+Arrays (`authorized_admitters`) are strictly ascending, hence duplicate-free (prereg v0.2.5 §6a).
 `pB` is an INPUT to the checker. No module of the checker library embeds a concrete `pB`.
 -/
 
@@ -106,27 +107,34 @@ def strictAscKeys : List (Tok × Tok) → Bool
   | [_] => true
   | x :: y :: rest => ltBytes x.1.1 y.1.1 && strictAscKeys (y :: rest)
 
-/-! ### Object body: entries separated by `,`, closed by `}` (empty object = `}`) -/
+def strictAscToks : List Tok → Bool
+  | [] => true
+  | [_] => true
+  | x :: y :: rest => ltBytes x.1 y.1 && strictAscToks (y :: rest)
 
-def tailEnc {α : Type} (E : Codec α) : List α → Bytes
-  | [] => [125]
-  | x :: xs => 44 :: (E.enc x ++ tailEnc E xs)
+/-! ### Container body: entries separated by `,`, closed by `term` (empty container = `term`)
+(`term = 125` for objects, `93` for arrays) -/
 
-def decTail {α : Type} (E : Codec α) : Nat → Bytes → Option (List α × Bytes)
+def tailEnc {α : Type} (E : Codec α) (term : Nat) : List α → Bytes
+  | [] => [term]
+  | x :: xs => 44 :: (E.enc x ++ tailEnc E term xs)
+
+def decTail {α : Type} (E : Codec α) (term : Nat) : Nat → Bytes → Option (List α × Bytes)
   | 0, _ => none
   | _ + 1, [] => none
   | f + 1, c :: r =>
-    if c = 125 then some ([], r)
+    if c = term then some ([], r)
     else if c = 44 then (E.dec r).bind fun xr =>
-      (decTail E f xr.2).map fun lr => (xr.1 :: lr.1, lr.2)
+      (decTail E term f xr.2).map fun lr => (xr.1 :: lr.1, lr.2)
     else none
 
-theorem tailEnc_len_pos {α : Type} (E : Codec α) (l : List α) : 1 ≤ (tailEnc E l).length := by
+theorem tailEnc_len_pos {α : Type} (E : Codec α) (term : Nat) (l : List α) :
+    1 ≤ (tailEnc E term l).length := by
   cases l <;> simp [tailEnc]
 
-theorem decTail_rt {α : Type} (E : Codec α) :
-    ∀ (l : List α) (r : Bytes) (f : Nat), (tailEnc E l).length ≤ f →
-      decTail E f (tailEnc E l ++ r) = some (l, r)
+theorem decTail_rt {α : Type} (E : Codec α) (term : Nat) (hterm : term ≠ 44) :
+    ∀ (l : List α) (r : Bytes) (f : Nat), (tailEnc E term l).length ≤ f →
+      decTail E term f (tailEnc E term l ++ r) = some (l, r)
   | [], r, f, h => by
     cases f with
     | zero => simp [tailEnc] at h
@@ -135,24 +143,25 @@ theorem decTail_rt {α : Type} (E : Codec α) :
     cases f with
     | zero => simp [tailEnc] at h
     | succ f =>
-      have h' : (E.enc x ++ tailEnc E xs).length ≤ f := by
+      have h' : (E.enc x ++ tailEnc E term xs).length ≤ f := by
         simp only [tailEnc, List.length_cons] at h
         omega
-      have hxs : (tailEnc E xs).length ≤ f := by
+      have hxs : (tailEnc E term xs).length ≤ f := by
         simp only [List.length_append] at h'
         omega
-      have ih := decTail_rt E xs r f hxs
+      have ih := decTail_rt E term hterm xs r f hxs
+      have hne : ¬ (44 = term) := fun e => hterm e.symm
       simp only [tailEnc, List.cons_append, List.append_assoc, decTail]
-      simp [E.rt, ih]
+      simp [hne, E.rt, ih]
 
-theorem decTail_eq {α : Type} (E : Codec α) :
+theorem decTail_eq {α : Type} (E : Codec α) (term : Nat) :
     ∀ (f : Nat) (b : Bytes) (l : List α) (r : Bytes),
-      decTail E f b = some (l, r) → b = tailEnc E l ++ r
+      decTail E term f b = some (l, r) → b = tailEnc E term l ++ r
   | 0, b, l, r, h => by simp [decTail] at h
   | f + 1, [], l, r, h => by simp [decTail] at h
   | f + 1, c :: b, l, r, h => by
     unfold decTail at h
-    by_cases h1 : c = 125
+    by_cases h1 : c = term
     · rw [if_pos h1] at h
       simp only [Option.some.injEq, Prod.mk.injEq] at h
       obtain ⟨hl, hr⟩ := h
@@ -165,7 +174,7 @@ theorem decTail_eq {α : Type} (E : Codec α) :
         | some xr =>
           rw [hx] at h
           simp only [Option.bind_some] at h
-          cases hL : decTail E f xr.2 with
+          cases hL : decTail E term f xr.2 with
           | none => rw [hL] at h; simp at h
           | some lr =>
             rw [hL] at h
@@ -173,43 +182,46 @@ theorem decTail_eq {α : Type} (E : Codec α) :
             obtain ⟨hl, hr⟩ := h
             subst hl; subst hr
             have e1 := E.eq _ _ _ hx
-            have e2 := decTail_eq E f _ _ _ hL
+            have e2 := decTail_eq E term f _ _ _ hL
             simp only [tailEnc, List.cons_append, List.append_assoc]
             rw [h2, e1, e2]
       · rw [if_neg h1, if_neg h2] at h
         simp at h
 
-/-- JSON-style object body. `hfirst`: every entry starts with `"` (never with `}`). -/
-def objBody {α : Type} (E : Codec α) (hfirst : ∀ a, ∃ t, E.enc a = 34 :: t) : Codec (List α) where
+/-- JSON-style container body. `hfirst`: every entry starts with `"` (never with `term`). -/
+def objBody {α : Type} (E : Codec α) (term : Nat) (hterm : term ≠ 44) (h34 : term ≠ 34)
+    (hfirst : ∀ a, ∃ t, E.enc a = 34 :: t) : Codec (List α) where
   enc
-    | [] => [125]
-    | x :: xs => E.enc x ++ tailEnc E xs
+    | [] => [term]
+    | x :: xs => E.enc x ++ tailEnc E term xs
   dec b :=
-    if b.head? = some 125 then some ([], b.tail)
+    if b.head? = some term then some ([], b.tail)
     else (E.dec b).bind fun xr =>
-      (decTail E b.length xr.2).map fun lr => (xr.1 :: lr.1, lr.2)
+      (decTail E term b.length xr.2).map fun lr => (xr.1 :: lr.1, lr.2)
   rt := by
     intro l r
     cases l with
     | nil => simp
     | cons x xs =>
       obtain ⟨t, ht⟩ := hfirst x
-      have hb : (E.enc x ++ tailEnc E xs) ++ r = 34 :: (t ++ tailEnc E xs ++ r) := by
+      have hb : (E.enc x ++ tailEnc E term xs) ++ r = 34 :: (t ++ tailEnc E term xs ++ r) := by
         rw [ht]; simp
-      have hne : ¬ ((E.enc x ++ tailEnc E xs) ++ r).head? = some 125 := by
-        rw [hb]; simp
-      have hl : (tailEnc E xs).length ≤ ((E.enc x ++ tailEnc E xs) ++ r).length := by
+      have hne : ¬ ((E.enc x ++ tailEnc E term xs) ++ r).head? = some term := by
+        rw [hb]
+        simp only [List.head?_cons, Option.some.injEq]
+        exact fun h => h34 h.symm
+      have hl : (tailEnc E term xs).length ≤ ((E.enc x ++ tailEnc E term xs) ++ r).length := by
         simp only [List.length_append]; omega
       simp only [hne, if_false]
       rw [List.append_assoc, E.rt]
-      have hl' : (tailEnc E xs).length ≤ (E.enc x ++ (tailEnc E xs ++ r)).length := by
+      have hl' : (tailEnc E term xs).length ≤ (E.enc x ++ (tailEnc E term xs ++ r)).length := by
         simp only [List.length_append]; omega
       simp only [Option.bind_some]
-      rw [decTail_rt E xs r _ hl']
+      rw [decTail_rt E term hterm xs r _ hl']
       rfl
   eq := by
     intro b l r h
-    by_cases hh : b.head? = some 125
+    by_cases hh : b.head? = some term
     · simp only [hh, if_true, Option.some.injEq, Prod.mk.injEq] at h
       obtain ⟨hl, hr⟩ := h
       subst hl; subst hr
@@ -225,11 +237,11 @@ def objBody {α : Type} (E : Codec α) (hfirst : ∀ a, ∃ t, E.enc a = 34 :: t
       subst hr
       subst hl
       have e1 := E.eq _ _ _ hx
-      have e2 := decTail_eq E _ _ _ _ hL
+      have e2 := decTail_eq E term _ _ _ _ hL
       simp only at e1 e2
       simp [e1, e2, List.append_assoc]
 
-/-! ### The key-resolution object and the artifact -/
+/-! ### The key-resolution object, the admitter array, and the artifact -/
 
 def entryC : Codec (Tok × Tok) := pre [34] (prod tokC (pre [58, 34] tokC))
 
@@ -237,19 +249,35 @@ theorem entryC_first : ∀ a, ∃ t, entryC.enc a = 34 :: t := by
   intro a
   exact ⟨_, rfl⟩
 
-/-- `KeyResolutionV0`: owner `iss` and every admitter `iss` ↦ key fingerprint, keys strictly ascending. -/
+/-- `KeyResolutionV0`: `iss` ↦ key fingerprint for the `iss` values whose frozen verification-key
+material is available, keys strictly ascending. Membership grants NO authorization (prereg TB4). -/
 abbrev KeyResolution := {es : List (Tok × Tok) // strictAscKeys es = true}
 
 def keyResolutionC : Codec KeyResolution :=
-  subtype strictAscKeys (pre [123] (objBody entryC entryC_first))
+  subtype strictAscKeys
+    (pre [123] (objBody entryC 125 (by decide) (by decide) entryC_first))
+
+def elemC : Codec Tok := pre [34] tokC
+
+theorem elemC_first : ∀ a, ∃ t, elemC.enc a = 34 :: t := by
+  intro a
+  exact ⟨_, rfl⟩
+
+/-- Explicit authorized admitter `iss` set (prereg v0.2.5 §6a): strictly ascending array. -/
+abbrev AuthorizedAdmitters := {l : List Tok // strictAscToks l = true}
+
+def authorizedAdmittersC : Codec AuthorizedAdmitters :=
+  subtype strictAscToks (pre [91] (objBody elemC 93 (by decide) (by decide) elemC_first))
 
 structure ProfileArtifact where
   admissionRuleId        : Tok
+  authorizedAdmitters    : AuthorizedAdmitters
   checkpointVds          : Tok
   coverageRuleId         : Tok
   evidenceScopeRuleId    : Tok
   fixtureId              : Tok
   keyResolution          : KeyResolution
+  leafEncodingSpecDigest : Tok
   normativeProfileDigest : Tok
   s1ProfileToken         : Tok
   verifierManifestDigest : Tok
@@ -260,7 +288,9 @@ def profileArtifactC : Codec ProfileArtifact :=
   iso
     (pre (bytes% "{\"admission_rule_id\":\"") <|
      prod tokC <|
-     pre (bytes% ",\"artifact_version\":\"P10-S2-ProfileArtifact-v0\",\"checkpoint_vds\":\"") <|
+     pre (bytes% ",\"artifact_version\":\"P10-S2-ProfileArtifact-v0\",\"authorized_admitters\":") <|
+     prod authorizedAdmittersC <|
+     pre (bytes% ",\"checkpoint_vds\":\"") <|
      prod tokC <|
      pre (bytes% ",\"coverage_rule_id\":\"") <|
      prod tokC <|
@@ -270,28 +300,28 @@ def profileArtifactC : Codec ProfileArtifact :=
      prod tokC <|
      pre (bytes% ",\"key_resolution\":") <|
      prod keyResolutionC <|
-     pre (bytes% ",\"leaf_encoding\":\"LeafEncodeV0\",\"log_identity_scheme\":\"LogIdentityV0\",\"normative_profile_digest\":\"") <|
+     pre (bytes% ",\"leaf_encoding\":\"LeafEncodeV0\",\"leaf_encoding_spec_digest\":\"") <|
+     prod tokC <|
+     pre (bytes% ",\"log_identity_scheme\":\"LogIdentityV0\",\"normative_profile_digest\":\"") <|
      prod tokC <|
      pre (bytes% ",\"s1_profile_token\":\"") <|
      prod tokC <|
-     pre (bytes% ",\"verifier_manifest_digest\":\"") <|
+     pre (bytes% ",\"subject_derivation\":\"SubjectDeriveV0\",\"verifier_manifest_digest\":\"") <|
      prod tokC <|
      pre (bytes% ",\"verifier_manifest_ref\":\"") <|
      post (bytes% "}") tokC)
-    (fun p => (p.admissionRuleId, p.checkpointVds, p.coverageRuleId, p.evidenceScopeRuleId,
-      p.fixtureId, p.keyResolution, p.normativeProfileDigest, p.s1ProfileToken,
-      p.verifierManifestDigest, p.verifierManifestRef))
+    (fun p => (p.admissionRuleId, p.authorizedAdmitters, p.checkpointVds, p.coverageRuleId,
+      p.evidenceScopeRuleId, p.fixtureId, p.keyResolution, p.leafEncodingSpecDigest,
+      p.normativeProfileDigest, p.s1ProfileToken, p.verifierManifestDigest,
+      p.verifierManifestRef))
     (fun t => ⟨t.1, t.2.1, t.2.2.1, t.2.2.2.1, t.2.2.2.2.1, t.2.2.2.2.2.1, t.2.2.2.2.2.2.1,
-      t.2.2.2.2.2.2.2.1, t.2.2.2.2.2.2.2.2.1, t.2.2.2.2.2.2.2.2.2⟩)
+      t.2.2.2.2.2.2.2.1, t.2.2.2.2.2.2.2.2.1, t.2.2.2.2.2.2.2.2.2.1, t.2.2.2.2.2.2.2.2.2.2.1,
+      t.2.2.2.2.2.2.2.2.2.2.2⟩)
     (fun _ => rfl) (fun _ => rfl)
 
 def encodeProfileArtifact (p : ProfileArtifact) : Bytes := profileArtifactC.enc p
 
 def decodeProfileArtifact (b : Bytes) : Option ProfileArtifact := profileArtifactC.decodeAll b
-
-end P10S2
-
-namespace P10S2
 
 /-- `decode ∘ encode = id` on every profile artifact. -/
 theorem decode_encode_profile (p : ProfileArtifact) :

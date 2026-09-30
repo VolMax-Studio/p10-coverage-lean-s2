@@ -1,6 +1,7 @@
 import P10S2.Fixture
 import P10S2.TranscriptCodec
 import P10S2.ProfileArtifact
+import P10S2.Digests
 import P10.Sha256
 
 /-!
@@ -64,15 +65,17 @@ def relevantAt (c : Ctx Item) (W : LogView Item) (i : Nat) : Bool :=
   | some lf => relevantF c.admissible c.adm lf
   | none => false
 
-/-- Valid owner profile commitment for this instance's profile digest. -/
-def profileAt (c : Ctx Item) (W : LogView Item) (i : Nat) : Bool :=
+/-- Valid owner-signed profile commitment and the profile digest it carries (prereg C3: there
+must be exactly one, and its digest must equal the commitment's `profile_digest`). -/
+def profileAt (c : Ctx Item) (W : LogView Item) (i : Nat) : Option Digest :=
   match W.leaf i with
   | some lf =>
-    validOwnerLifecycleF c.owner lf && decide (lf.kind = .profileCommit) &&
-      (match lf.payload with
-       | some (.profileCommit d) => decide (d = c.inst.profileDigest)
-       | _ => false)
-  | none => false
+    if validOwnerLifecycleF c.owner lf && decide (lf.kind = .profileCommit) then
+      match lf.payload with
+      | some (.profileCommit d) => some d
+      | _ => none
+    else none
+  | none => none
 
 /-- Valid owner `InstanceCommitment` for the instance tuple `(owner, request_id, subject)`. -/
 def commitAt (c : Ctx Item) (W : LogView Item) (i : Nat) : Option InstanceCommitment :=
@@ -104,7 +107,7 @@ def adjAt (c : Ctx Item) (W : LogView Item) (i : Nat) : Option (Nat × Nat × Na
     else none
   | none => none
 
-/-! ### The pre-closure transcript digest (profile M29) -/
+/-! ### The pre-closure transcript digest (profile M29; `PreclosureDigestV0`, prereg §6b) -/
 
 /-- Entries of `ClosureTranscriptViewπ` strictly before `k`: valid owner lifecycle entries or
 relevant admissions, as `(index, kind, iss)`. -/
@@ -116,14 +119,6 @@ def closureView (c : Ctx Item) (W : LogView Item) (k : Nat) : List (Nat × Kind 
       then some (i, lf.kind, lf.iss) else none
     | none => none
 
-def preclosureMagic : Bytes := bytes% "P10S2-PreclosureView-v0:"
-
-def viewC : Codec (List (Nat × Kind × Iss)) :=
-  Codec.list (Codec.prod Codec.nat (Codec.prod cKind cIss))
-
-def preclosureDigestOf (v : List (Nat × Kind × Iss)) : Digest :=
-  ⟨sha256 (preclosureMagic ++ viewC.enc v)⟩
-
 /-- Valid owner closure at `k` (M29: its pre-closure digest describes the view right before `k`). -/
 def closureAt (c : Ctx Item) (W : LogView Item) (k : Nat) : Option ClosurePayload :=
   match W.leaf k with
@@ -132,7 +127,7 @@ def closureAt (c : Ctx Item) (W : LogView Item) (k : Nat) : Option ClosurePayloa
       match lf.payload with
       | some (.closure cl) =>
         if cl.instanceSubject = c.inst.instanceSubject ∧ cl.terminal = true ∧
-            cl.checkpointPreclosureTranscriptDigest = preclosureDigestOf (closureView c W k)
+            cl.checkpointPreclosureTranscriptDigest = preclosureDigestV0 (closureView c W k)
         then some cl else none
       | _ => none
     else none
@@ -167,14 +162,16 @@ def beforeAll (c : Ctx Item) (W : LogView Item) (i : Nat) : Bool :=
 def coreCheck (π : AdmissionProfile) (c : Ctx π.Item) (W : LogView π.Item) :
     CoverageOutcome π.Evidence :=
   let idxs := List.range W.size
-  let profs := idxs.filter (profileAt c W)
+  let profs := idxs.filterMap fun i => (profileAt c W i).map fun d => (i, d)
   let commits := idxs.filterMap fun i => (commitAt c W i).map fun ic => (i, ic)
   let adjs := idxs.filterMap fun i => (adjAt c W i).map fun r => (i, r)
   let closures := idxs.filterMap fun i => (closureAt c W i).map fun cl => (i, cl)
-  -- C3: profile commitment registered before the first RelevantAdmission (M5)
+  -- C3: exactly one owner profile commitment, with the committed digest, before every admission
   match profs with
   | [] => .halt .c3_noProfileCommitment
-  | p :: _ =>
+  | _ :: _ :: _ => .reject .c3_multipleProfileCommitments
+  | [(p, d)] =>
+  finish (stage (decide (d = c.inst.profileDigest)) (.reject .c3_profileDigestMismatch)) <|
   finish (stage (beforeAll c W p) (.reject .c3_profileAfterFirstAdmission)) <|
   -- C4: exactly one valid owner InstanceCommitment, before the first admission
   match commits with
@@ -203,12 +200,21 @@ def coreCheck (π : AdmissionProfile) (c : Ctx π.Item) (W : LogView π.Item) :
   -- C10: no RelevantAdmission after the closure and before size(S_R)
   finish (stage (!(idxs.any fun i => decide (k < i) && relevantAt c W i))
     (.reject .c10_relevantAdmissionAfterClosure)) <|
-  -- C11: a valid owner adjudication after the closure (else HALT)
-  finish (stage (adjs.any fun ar => decide (k < ar.1))
-    (.halt .c11_noAdjudicationAfterClosure)) <|
-  -- C12: e = Bundle(refs) ∈ Eπ
+  -- C11: owner adjudications after the closure: at least one (else HALT); every one cites
+  -- exactly the profile, commitment and closure selected by C3, C4, C6 (else REJECT)
+  let after := adjs.filter fun ar => decide (k < ar.1)
+  match after with
+  | [] => .halt .c11_noAdjudicationAfterClosure
+  | _ :: _ =>
+  finish (stage (after.all fun ar =>
+      decide (ar.2.1 = p) && decide (ar.2.2.1 = ci) && decide (ar.2.2.2 = k))
+    (.reject .c11_adjudicationRefsMismatch)) <|
+  -- C12: e = Bundle(refs) ∈ Eπ;  C13: closed_evidence_set_digest = EvidenceDigestV0(e)
   let e := π.bundle (R.filterMap (itemAt W))
-  if π.inEb e = true then .accept e else .reject .c12_evidenceOutsideE
+  if π.inEb e = true then
+    finish (stage (decide (cl.closedEvidenceSetDigest = evidenceDigestV0 (π.evidenceTok e)))
+      (.reject .c13_closedEvidenceDigest)) (.accept e)
+  else .reject .c12_evidenceOutsideE
 
 /-! ### The subject view of a transcript, and C1 / C2 -/
 
@@ -237,22 +243,12 @@ def rowUnavailable (r : Row) : Bool :=
 
 def authorizedIss (c : Ctx Item) (i : Iss) : Bool := decide (i = c.owner) || c.adm.contains i
 
-/-- Admitter set: every `iss` of `KeyResolutionV0` other than the owner. -/
-def admittersOf (owner : Iss) (kr : KeyResolution) : List Iss :=
-  kr.1.filterMap fun e => if Iss.mk e.1.1 = owner then none else some ⟨e.1.1⟩
-
-def admitterSetMagic : Bytes := bytes% "P10S2-AdmitterSet-v0:"
-
-def admitterSetDigestOf (adm : List Iss) : Digest :=
-  ⟨sha256 (admitterSetMagic ++ (Codec.list cIss).enc adm)⟩
-
-def keyResolutionDigestOf (kr : KeyResolution) : Digest := ⟨sha256 (keyResolutionC.enc kr)⟩
-
 /-- S1 constants a profile artifact must carry. -/
 def s1Spec : Bytes := P10.Wire.specTok
 def s1ProfileTok : Bytes := P10.Wire.profileTok
 
-/-- The transcript-level checks C1 and C2 and then the core. `pB` and `T` are inputs. -/
+/-- The transcript-level checks C1 (incl. C1a–C1c) and C2, and then the core (C3–C13).
+`pB` and `T` are inputs. -/
 def coverageCheck (π : AdmissionProfile) (inst : InstanceCommitment) (pB : Bytes)
     (T : Transcript π.Item) : CoverageOutcome π.Evidence :=
   let sub := inst.instanceSubject
@@ -263,7 +259,7 @@ def coverageCheck (π : AdmissionProfile) (inst : InstanceCommitment) (pB : Byte
     (.reject .c1_detailedMismatch)) <|
   finish (stage (decide (T.logIdentityDigest = inst.logIdentityDigest))
     (.reject .c1_logIdentity)) <|
-  -- C1 (profile artifact): digest, strict decode, fields, key resolution, admitter set
+  -- C1 (profile artifact): digest, strict decode, fixed fields
   finish (stage (decide (sha256 pB = inst.profileDigest.bytes)) (.reject .c1_profileDigest)) <|
   match decodeProfileArtifact pB with
   | none => .reject .c1_profileDecode
@@ -271,11 +267,29 @@ def coverageCheck (π : AdmissionProfile) (inst : InstanceCommitment) (pB : Byte
   finish (stage (decide (prof.fixtureId.1 = π.fixtureId) &&
       decide (prof.normativeProfileDigest.1 = s1Spec) &&
       decide (prof.s1ProfileToken.1 = s1ProfileTok)) (.reject .c1_profileFields)) <|
-  finish (stage (decide (T.keyResolutionDigest = keyResolutionDigestOf prof.keyResolution))
-    (.reject .c1_keyResolutionDigest)) <|
-  let adm := admittersOf inst.instanceOwnerIss prof.keyResolution
-  finish (stage (decide (inst.authorizedAdmitterSetDigest = admitterSetDigestOf adm))
-    (.reject .c1_admitterSetDigest)) <|
+  -- C1a [v0.2.5 B2]: owner = issuer, subject derivation
+  finish (stage (decide (inst.instanceOwnerIss = inst.issuerId)) (.reject .c1a_ownerNotIssuer)) <|
+  finish (stage (allTokB inst.issuerId.bytes) (.reject .c1a_issuerNotToken)) <|
+  finish (stage (decide (inst.instanceSubject = subjectDeriveV0 inst.issuerId inst.requestId))
+    (.reject .c1a_subjectDerivation)) <|
+  -- C1b [v0.2.5 B3, I-3]: explicit admitter set and key-resolution digests
+  let adm := admitterIss prof
+  finish (stage (!(adm.contains inst.instanceOwnerIss)) (.reject .c1_ownerInAdmitters)) <|
+  finish (stage (decide (inst.authorizedAdmitterSetDigest = authorizedAdmittersDigestOf prof))
+    (.reject .c1b_admittersDigest)) <|
+  finish (stage (decide (T.keyResolutionDigest = keyResolutionDigestV0 prof.keyResolution))
+    (.reject .c1b_keyResolutionDigest)) <|
+  -- C1c [v0.2.5 B2, B4]: the five commitment descriptor digests
+  finish (stage (decide (inst.subjectDerivationDigest = subjectDerivationDigestV0 prof))
+    (.reject .c1c_subjectDerivationDigest)) <|
+  finish (stage (decide (inst.leafEncodingProfileDigest = leafEncodingProfileDigestV0 prof))
+    (.reject .c1c_leafEncodingProfileDigest)) <|
+  finish (stage (decide (inst.evidenceScopeDigest = evidenceScopeDigestV0 prof))
+    (.reject .c1c_evidenceScopeDigest)) <|
+  finish (stage (decide (inst.admissionRuleDigest = admissionRuleDigestV0 prof))
+    (.reject .c1c_admissionRuleDigest)) <|
+  finish (stage (decide (inst.coverageRuleDigest = coverageRuleDigestV0 prof))
+    (.reject .c1c_coverageRuleDigest)) <|
   let c : Ctx π.Item := ⟨π.admissible, inst, adm⟩
   -- C2: availability (HALT)
   finish (stage (!(T.rows.any rowUnavailable)) (.halt .c2_rowUnavailable)) <|

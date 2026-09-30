@@ -3,22 +3,26 @@ import P10S2.Coverage
 /-!
 # P10S2.CoverageSpec — what `accept` implies (prereg §8), and the soundness theorems
 
-`CoreSpec` is the declarative content of C3–C12 over a subject view `W`:
+`CoreSpec` is the declarative content of C3–C13 over a subject view `W`. There are one profile
+commitment `p`, one instance commitment `ci` and one closure `k` (each unique among the valid owner
+entries of its kind), and:
 
-* `profile`     — a valid owner profile commitment precedes every `RelevantAdmission`;
-* `commitment`  — exactly one valid owner `InstanceCommitment` for the tuple, equal to the frozen
-                  one, preceding every `RelevantAdmission`;
-* `noCitedNonOwner` — no valid owner adjudication cites a non-owner lifecycle entry;
-* `closure`     — exactly one valid owner closure `k`; its refs are strictly ascending, without
-                  duplicates, and equal, as lists, to the `RelevantAdmission`s before `k`; none lies
-                  in `(k, size)`; a valid owner adjudication follows `k`; `e = Bundle(refs) ∈ Eπ`.
+* `p` carries exactly the committed profile digest and, like `ci`, precedes every
+  `RelevantAdmission`; `ci`'s payload equals the frozen commitment;
+* no valid owner adjudication cites a non-owner lifecycle entry (C5);
+* the closure's refs are strictly ascending, duplicate-free and equal, as lists, to the
+  `RelevantAdmission`s before `k`; none lies in `(k, size)`;
+* at least one valid owner adjudication follows `k`, and **every** one cites exactly `(p, ci, k)` (C11);
+* `e = Bundle(refs) ∈ Eπ` (C12) and the closure's `closed_evidence_set_digest` is
+  `EvidenceDigestV0(e)` (C13).
 
 `CoverageSpecV` states the same over an abstract log view `V` (its subject view), under the
 premise `TranscriptFaithful T V`, which Lean cannot discharge (TB2).
 
-Premises and boundaries that this file does NOT discharge (prereg TB2–TB6):
-`TranscriptFaithful`, the admitter set and key map frozen by the committed profile (TB4),
-checkpoint selection and freshness (TB6): nothing is claimed about leaves at `idx ≥ size(S_R)`.
+Premises and boundaries that this file does NOT discharge (prereg TB2–TB6): `TranscriptFaithful`,
+the key map and admitter set frozen by the committed profile (TB4), checkpoint selection and
+freshness (TB6): nothing is claimed about leaves at `idx ≥ size(S_R)`. Recomputing
+`LogIdentityV0` and executing `LeafEncodeV0` are S2b obligations (§16).
 -/
 
 namespace P10S2
@@ -32,20 +36,27 @@ def Rel (c : Ctx Item) (W : LogView Item) (f : Nat) : Prop :=
 
 structure CoreSpec (π : AdmissionProfile) (c : Ctx π.Item) (W : LogView π.Item)
     (e : π.Evidence) : Prop where
-  profile : ∃ p, p < W.size ∧ profileAt c W p = true ∧ ∀ f, Rel c W f → p < f
-  commitment : ∃ ci, ci < W.size ∧ commitAt c W ci = some c.inst ∧
-    (∀ j ic, j < W.size → commitAt c W j = some ic → j = ci) ∧ ∀ f, Rel c W f → ci < f
+  sel : ∃ p ci k cl,
+    (p < W.size ∧ profileAt c W p = some c.inst.profileDigest ∧
+      (∀ j d, j < W.size → profileAt c W j = some d → j = p) ∧
+      ∀ f, Rel c W f → p < f) ∧
+    (ci < W.size ∧ commitAt c W ci = some c.inst ∧
+      (∀ j ic, j < W.size → commitAt c W j = some ic → j = ci) ∧
+      ∀ f, Rel c W f → ci < f) ∧
+    (k < W.size ∧ closureAt c W k = some cl ∧
+      (∀ j cl', j < W.size → closureAt c W j = some cl' → j = k) ∧
+      List.Pairwise (· < ·) cl.orderedAdmissionRefs ∧
+      cl.orderedAdmissionRefs.Nodup ∧
+      cl.orderedAdmissionRefs = (List.range k).filter (relevantAt c W) ∧
+      (∀ i, k < i → i < W.size → relevantAt c W i = false) ∧
+      (∃ j, k < j ∧ j < W.size ∧ ∃ r, adjAt c W j = some r) ∧
+      (∀ j a b d, k < j → j < W.size → adjAt c W j = some (a, b, d) →
+        a = p ∧ b = ci ∧ d = k) ∧
+      e = π.bundle (cl.orderedAdmissionRefs.filterMap (itemAt W)) ∧ π.inE e ∧
+      cl.closedEvidenceSetDigest = evidenceDigestV0 (π.evidenceTok e))
   noCitedNonOwner : ∀ j a b d, j < W.size → adjAt c W j = some (a, b, d) →
     nonOwnerLifecycleAt c W a = false ∧ nonOwnerLifecycleAt c W b = false ∧
       nonOwnerLifecycleAt c W d = false
-  closure : ∃ k cl, k < W.size ∧ closureAt c W k = some cl ∧
-    (∀ j cl', j < W.size → closureAt c W j = some cl' → j = k) ∧
-    List.Pairwise (· < ·) cl.orderedAdmissionRefs ∧
-    cl.orderedAdmissionRefs.Nodup ∧
-    cl.orderedAdmissionRefs = (List.range k).filter (relevantAt c W) ∧
-    (∀ i, k < i → i < W.size → relevantAt c W i = false) ∧
-    (∃ j, k < j ∧ j < W.size ∧ ∃ r, adjAt c W j = some r) ∧
-    e = π.bundle (cl.orderedAdmissionRefs.filterMap (itemAt W)) ∧ π.inE e
 
 /-! ### Small list/Bool facts -/
 
@@ -89,7 +100,7 @@ theorem finish_stage {E : Type} {b : Bool} {o k : CoverageOutcome E} {e : E}
     exact absurd h (ho e)
   · simpa [stage, finish] using h
 
-/-! ### Soundness of the core (C3–C12) -/
+/-! ### Soundness of the core (C3–C13) -/
 
 theorem coreCheck_sound (π : AdmissionProfile) (c : Ctx π.Item) (W : LogView π.Item)
     (e : π.Evidence) (h : coreCheck π c W = .accept e) : CoreSpec π c W e := by
@@ -97,8 +108,10 @@ theorem coreCheck_sound (π : AdmissionProfile) (c : Ctx π.Item) (W : LogView �
   simp only [] at h
   split at h
   · simp at h
-  · rename_i p ps hprofs
-    obtain ⟨h3, h⟩ := finish_stage (by intro e'; simp) h
+  · simp at h
+  · rename_i p d hprofs
+    obtain ⟨h3a, h⟩ := finish_stage (by intro e'; simp) h
+    obtain ⟨h3b, h⟩ := finish_stage (by intro e'; simp) h
     split at h
     · simp at h
     · simp at h
@@ -114,66 +127,113 @@ theorem coreCheck_sound (π : AdmissionProfile) (c : Ctx π.Item) (W : LogView �
         obtain ⟨h8, h⟩ := finish_stage (by intro e'; simp) h
         obtain ⟨h9, h⟩ := finish_stage (by intro e'; simp) h
         obtain ⟨h10, h⟩ := finish_stage (by intro e'; simp) h
-        obtain ⟨h11, h⟩ := finish_stage (by intro e'; simp) h
-        have hp : p ∈ List.filter (profileAt c W) (List.range W.size) := by
-          rw [hprofs]; simp
-        rw [List.mem_filter, List.mem_range] at hp
-        have hci : (ci, ic) ∈ List.filterMap
-            (fun i => Option.map (fun ic => (i, ic)) (commitAt c W i)) (List.range W.size) := by
-          rw [hcommits]; simp
-        rw [mem_idx_pairs] at hci
-        have hic : ic = c.inst := of_decide_eq_true h4a
-        have hk : (k, cl) ∈ List.filterMap
-            (fun i => Option.map (fun cl => (i, cl)) (closureAt c W i)) (List.range W.size) := by
-          rw [hclosures]; simp
-        rw [mem_idx_pairs] at hk
-        have hR : cl.orderedAdmissionRefs = (List.range k).filter (relevantAt c W) :=
-          of_decide_eq_true h9
-        refine ⟨⟨p, hp.1, hp.2, beforeAll_spec h3⟩, ⟨ci, hci.1, ?_, ?_, beforeAll_spec h4b⟩, ?_, ?_⟩
-        · rw [hci.2, hic]
-        · intro j ic' hj hc'
-          have hm : (j, ic') ∈ List.filterMap
-              (fun i => Option.map (fun ic => (i, ic)) (commitAt c W i)) (List.range W.size) :=
-            (mem_idx_pairs _ _ _ _).mpr ⟨hj, hc'⟩
-          rw [hcommits] at hm
-          simp at hm
-          exact hm.1
-        · intro j a b d hj hadj
-          have hm : (j, (a, b, d)) ∈ List.filterMap
-              (fun i => Option.map (fun r => (i, r)) (adjAt c W i)) (List.range W.size) :=
-            (mem_idx_pairs _ _ _ _).mpr ⟨hj, hadj⟩
-          have := List.all_eq_true.mp h5 _ hm
-          simp only [Bool.and_eq_true, Bool.not_eq_true'] at this
-          exact ⟨this.1.1, this.1.2, this.2⟩
-        · refine ⟨k, cl, hk.1, hk.2, ?_, strictAscNat_pairwise _ h7, ?_, hR, ?_, ?_, ?_⟩
-          · intro j cl' hj hc'
-            have hm : (j, cl') ∈ List.filterMap
-                (fun i => Option.map (fun cl => (i, cl)) (closureAt c W i)) (List.range W.size) :=
-              (mem_idx_pairs _ _ _ _).mpr ⟨hj, hc'⟩
-            rw [hclosures] at hm
-            simp at hm
-            exact hm.1
-          · exact (strictAscNat_pairwise _ h7).imp (fun h => Nat.ne_of_lt h)
-          · intro i hki hi
-            cases hr : relevantAt c W i
-            · rfl
-            · exfalso
-              have hany : (List.range W.size).any
-                  (fun i => decide (k < i) && relevantAt c W i) = true :=
-                List.any_eq_true.mpr ⟨i, List.mem_range.mpr hi, by simp [hki, hr]⟩
-              rw [hany] at h10
-              exact absurd h10 (by decide)
-          · obtain ⟨⟨j, r⟩, hm, hkj⟩ := List.any_eq_true.mp h11
-            have hm' := (mem_idx_pairs _ _ _ _).mp hm
-            exact ⟨j, of_decide_eq_true hkj, hm'.1, r, hm'.2⟩
-          · split at h
-            · rename_i hE
-              simp only [CoverageOutcome.accept.injEq] at h
-              subst h
-              exact ⟨rfl, (π.inE_spec _).mpr hE⟩
-            · simp at h
+        split at h
+        · simp at h
+        · rename_i x xs hafter
+          obtain ⟨h11, h⟩ := finish_stage (by intro e'; simp) h
+          have hp : (p, d) ∈ List.filterMap
+              (fun i => Option.map (fun d => (i, d)) (profileAt c W i)) (List.range W.size) := by
+            rw [hprofs]; simp
+          rw [mem_idx_pairs] at hp
+          have hd : d = c.inst.profileDigest := of_decide_eq_true h3a
+          have hci : (ci, ic) ∈ List.filterMap
+              (fun i => Option.map (fun ic => (i, ic)) (commitAt c W i)) (List.range W.size) := by
+            rw [hcommits]; simp
+          rw [mem_idx_pairs] at hci
+          have hic : ic = c.inst := of_decide_eq_true h4a
+          have hk : (k, cl) ∈ List.filterMap
+              (fun i => Option.map (fun cl => (i, cl)) (closureAt c W i)) (List.range W.size) := by
+            rw [hclosures]; simp
+          rw [mem_idx_pairs] at hk
+          have hR : cl.orderedAdmissionRefs = (List.range k).filter (relevantAt c W) :=
+            of_decide_eq_true h9
+          split at h
+          · rename_i hE
+            obtain ⟨h13, h⟩ := finish_stage (by intro e'; simp) h
+            simp only [CoverageOutcome.accept.injEq] at h
+            subst h
+            refine ⟨⟨p, ci, k, cl, ⟨hp.1, ?_, ?_, beforeAll_spec h3b⟩, ⟨hci.1, ?_, ?_, beforeAll_spec h4b⟩,
+              ⟨hk.1, hk.2, ?_, strictAscNat_pairwise _ h7, ?_, hR, ?_, ?_, ?_, rfl,
+                (π.inE_spec _).mpr hE, of_decide_eq_true h13⟩⟩, ?_⟩
+            · rw [hp.2, hd]
+            · intro j d' hj hd'
+              have hm : (j, d') ∈ List.filterMap
+                  (fun i => Option.map (fun d => (i, d)) (profileAt c W i)) (List.range W.size) :=
+                (mem_idx_pairs _ _ _ _).mpr ⟨hj, hd'⟩
+              rw [hprofs] at hm
+              simp at hm
+              exact hm.1
+            · rw [hci.2, hic]
+            · intro j ic' hj hc'
+              have hm : (j, ic') ∈ List.filterMap
+                  (fun i => Option.map (fun ic => (i, ic)) (commitAt c W i)) (List.range W.size) :=
+                (mem_idx_pairs _ _ _ _).mpr ⟨hj, hc'⟩
+              rw [hcommits] at hm
+              simp at hm
+              exact hm.1
+            · intro j cl' hj hc'
+              have hm : (j, cl') ∈ List.filterMap
+                  (fun i => Option.map (fun cl => (i, cl)) (closureAt c W i)) (List.range W.size) :=
+                (mem_idx_pairs _ _ _ _).mpr ⟨hj, hc'⟩
+              rw [hclosures] at hm
+              simp at hm
+              exact hm.1
+            · exact (strictAscNat_pairwise _ h7).imp (fun h => Nat.ne_of_lt h)
+            · intro i hki hi
+              cases hr : relevantAt c W i
+              · rfl
+              · exfalso
+                have hany : (List.range W.size).any
+                    (fun i => decide (k < i) && relevantAt c W i) = true :=
+                  List.any_eq_true.mpr ⟨i, List.mem_range.mpr hi, by simp [hki, hr]⟩
+                rw [hany] at h10
+                exact absurd h10 (by decide)
+            · have hxm : x ∈ List.filter (fun ar => decide (k < ar.1)) (List.filterMap
+                  (fun i => Option.map (fun r => (i, r)) (adjAt c W i)) (List.range W.size)) := by
+                rw [hafter]; simp
+              obtain ⟨hxa, hxk⟩ := List.mem_filter.mp hxm
+              obtain ⟨j, r⟩ := x
+              have hm' := (mem_idx_pairs _ _ _ _).mp hxa
+              exact ⟨j, of_decide_eq_true hxk, hm'.1, r, hm'.2⟩
+            · intro j a b d' hkj hj hadj
+              have hm : (j, (a, b, d')) ∈ List.filterMap
+                  (fun i => Option.map (fun r => (i, r)) (adjAt c W i)) (List.range W.size) :=
+                (mem_idx_pairs _ _ _ _).mpr ⟨hj, hadj⟩
+              have hma : (j, (a, b, d')) ∈ List.filter (fun ar => decide (k < ar.1))
+                  (List.filterMap (fun i => Option.map (fun r => (i, r)) (adjAt c W i))
+                    (List.range W.size)) :=
+                List.mem_filter.mpr ⟨hm, by simpa using hkj⟩
+              have := List.all_eq_true.mp h11 _ hma
+              simp only [Bool.and_eq_true, decide_eq_true_eq] at this
+              exact ⟨this.1.1, this.1.2, this.2⟩
+            · intro j a b d' hj hadj
+              have hm : (j, (a, b, d')) ∈ List.filterMap
+                  (fun i => Option.map (fun r => (i, r)) (adjAt c W i)) (List.range W.size) :=
+                (mem_idx_pairs _ _ _ _).mpr ⟨hj, hadj⟩
+              have := List.all_eq_true.mp h5 _ hm
+              simp only [Bool.and_eq_true, Bool.not_eq_true'] at this
+              exact ⟨this.1.1, this.1.2, this.2⟩
+          · simp at h
 
-/-! ### The transcript-level specification (C1, C2 and the core) -/
+/-! ### The transcript-level specification (C1, C1a–C1c, C2 and the core) -/
+
+/-- What C1 (profile-artifact fields), C1a, C1b (admitters) and C1c establish about a decoded
+profile artifact `prof` relative to the frozen commitment `inst` (prereg v0.2.5 §7). -/
+structure C1FactsV (π : AdmissionProfile) (inst : InstanceCommitment)
+    (prof : ProfileArtifact) : Prop where
+  fixture : prof.fixtureId.1 = π.fixtureId
+  normative : prof.normativeProfileDigest.1 = s1Spec
+  s1Token : prof.s1ProfileToken.1 = s1ProfileTok
+  ownerIsIssuer : inst.instanceOwnerIss = inst.issuerId
+  issuerToken : allTokB inst.issuerId.bytes = true
+  subjectDerived : inst.instanceSubject = subjectDeriveV0 inst.issuerId inst.requestId
+  ownerNotAdmitter : (admitterIss prof).contains inst.instanceOwnerIss = false
+  admittersDigest : inst.authorizedAdmitterSetDigest = authorizedAdmittersDigestOf prof
+  subjectDerivationDigest : inst.subjectDerivationDigest = subjectDerivationDigestV0 prof
+  leafEncodingProfileDigest : inst.leafEncodingProfileDigest = leafEncodingProfileDigestV0 prof
+  evidenceScopeDigest : inst.evidenceScopeDigest = evidenceScopeDigestV0 prof
+  admissionRuleDigest : inst.admissionRuleDigest = admissionRuleDigestV0 prof
+  coverageRuleDigest : inst.coverageRuleDigest = coverageRuleDigestV0 prof
 
 /-- Everything `accept` implies about a transcript `T`, relative to `inst` and `pB`. -/
 structure CoverageSpecT (π : AdmissionProfile) (inst : InstanceCommitment) (pB : Bytes)
@@ -184,17 +244,12 @@ structure CoverageSpecT (π : AdmissionProfile) (inst : InstanceCommitment) (pB 
   profileDigest : sha256 pB = inst.profileDigest.bytes
   noUnavailableRow : ∀ r ∈ T.rows, rowUnavailable r = false
   payloadsAvailable : ∀ d ∈ T.detailed, d.payload.isSome = true
-  profile : ∃ prof, decodeProfileArtifact pB = some prof ∧
-    prof.fixtureId.1 = π.fixtureId ∧ prof.normativeProfileDigest.1 = s1Spec ∧
-    prof.s1ProfileToken.1 = s1ProfileTok ∧
-    T.keyResolutionDigest = keyResolutionDigestOf prof.keyResolution ∧
-    inst.authorizedAdmitterSetDigest =
-      admitterSetDigestOf (admittersOf inst.instanceOwnerIss prof.keyResolution) ∧
+  profile : ∃ prof, decodeProfileArtifact pB = some prof ∧ C1FactsV π inst prof ∧
+    T.keyResolutionDigest = keyResolutionDigestV0 prof.keyResolution ∧
     (∀ d ∈ T.detailed,
-      authorizedIss ⟨π.admissible, inst, admittersOf inst.instanceOwnerIss prof.keyResolution⟩
-        d.iss = true → d.sig ≠ .keyUnavailable) ∧
-    CoreSpec π ⟨π.admissible, inst, admittersOf inst.instanceOwnerIss prof.keyResolution⟩
-      (viewT inst.instanceSubject T) e
+      authorizedIss ⟨π.admissible, inst, admitterIss prof⟩ d.iss = true →
+        d.sig ≠ .keyUnavailable) ∧
+    CoreSpec π ⟨π.admissible, inst, admitterIss prof⟩ (viewT inst.instanceSubject T) e
 
 /-- **`coverage_sound`**: an accepted transcript satisfies the coverage specification. -/
 theorem coverage_sound (π : AdmissionProfile) (inst : InstanceCommitment) (pB : Bytes)
@@ -210,16 +265,29 @@ theorem coverage_sound (π : AdmissionProfile) (inst : InstanceCommitment) (pB :
   · simp at h
   · rename_i prof hprof
     obtain ⟨h1e, h⟩ := finish_stage (by intro e'; simp) h
-    obtain ⟨h1f, h⟩ := finish_stage (by intro e'; simp) h
-    obtain ⟨h1g, h⟩ := finish_stage (by intro e'; simp) h
+    obtain ⟨ha1, h⟩ := finish_stage (by intro e'; simp) h
+    obtain ⟨ha2, h⟩ := finish_stage (by intro e'; simp) h
+    obtain ⟨ha3, h⟩ := finish_stage (by intro e'; simp) h
+    obtain ⟨hb0, h⟩ := finish_stage (by intro e'; simp) h
+    obtain ⟨hb1, h⟩ := finish_stage (by intro e'; simp) h
+    obtain ⟨hb2, h⟩ := finish_stage (by intro e'; simp) h
+    obtain ⟨hc1, h⟩ := finish_stage (by intro e'; simp) h
+    obtain ⟨hc2, h⟩ := finish_stage (by intro e'; simp) h
+    obtain ⟨hc3, h⟩ := finish_stage (by intro e'; simp) h
+    obtain ⟨hc4, h⟩ := finish_stage (by intro e'; simp) h
+    obtain ⟨hc5, h⟩ := finish_stage (by intro e'; simp) h
     obtain ⟨h2a, h⟩ := finish_stage (by intro e'; simp) h
     obtain ⟨h2b, h⟩ := finish_stage (by intro e'; simp) h
     obtain ⟨h2c, h⟩ := finish_stage (by intro e'; simp) h
     simp only [Bool.and_eq_true, decide_eq_true_eq] at h1e
     have hcore := coreCheck_sound _ _ _ _ h
     refine ⟨of_decide_eq_true h1a, of_decide_eq_true h1b, of_decide_eq_true h1c,
-      of_decide_eq_true h1d, ?_, ?_, prof, hprof, h1e.1.1, h1e.1.2, h1e.2,
-      of_decide_eq_true h1f, of_decide_eq_true h1g, ?_, hcore⟩
+      of_decide_eq_true h1d, ?_, ?_, prof, hprof,
+      ⟨h1e.1.1, h1e.1.2, h1e.2, of_decide_eq_true ha1, ha2, of_decide_eq_true ha3,
+        by simpa using hb0, of_decide_eq_true hb1, of_decide_eq_true hc1,
+        of_decide_eq_true hc2, of_decide_eq_true hc3, of_decide_eq_true hc4,
+        of_decide_eq_true hc5⟩,
+      of_decide_eq_true hb2, ?_, hcore⟩
     · intro r hr
       cases hrr : rowUnavailable r
       · rfl
@@ -412,21 +480,18 @@ theorem viewT_eq_subj (sub : Subject) (T : Transcript Item) (V : LogView Item)
 /-! ### The view-level specification (prereg §8, `CoverageSpecV`) -/
 
 /-- Everything `accept` implies about the abstract log view `V` through `S_R`, given a faithful
-transcript. In particular, over `SubjectView(V)`: profile and commitment precede every
-`RelevantAdmission`; exactly one valid owner closure `k`; its refs are exactly, as ascending
-duplicate-free lists, the `RelevantAdmission`s before `k`; no `RelevantAdmission` lies in
-`(k, size)`; and `e = Bundle(refs) ∈ Eπ`. All leaves below `size` were available. -/
+transcript. In particular, over `SubjectView(V)`: one valid owner profile commitment with the
+committed digest and one commitment precede every `RelevantAdmission`; exactly one valid owner
+closure `k`; its refs are exactly, as ascending duplicate-free lists, the `RelevantAdmission`s
+before `k`; no `RelevantAdmission` lies in `(k, size)`; every owner adjudication after `k` cites
+the selected profile, commitment and closure; `e = Bundle(refs) ∈ Eπ` and the closure's
+`closed_evidence_set_digest` is `EvidenceDigestV0(e)`. All leaves below `size` were available. -/
 structure CoverageSpecV (π : AdmissionProfile) (inst : InstanceCommitment) (pB : Bytes)
     (V : LogView π.Item) (e : π.Evidence) : Prop where
   profileDigest : sha256 pB = inst.profileDigest.bytes
   allAvailable : ∀ i, i < V.size → (V.leaf i).isSome = true
-  profile : ∃ prof, decodeProfileArtifact pB = some prof ∧
-    prof.fixtureId.1 = π.fixtureId ∧ prof.normativeProfileDigest.1 = s1Spec ∧
-    prof.s1ProfileToken.1 = s1ProfileTok ∧
-    inst.authorizedAdmitterSetDigest =
-      admitterSetDigestOf (admittersOf inst.instanceOwnerIss prof.keyResolution) ∧
-    CoreSpec π ⟨π.admissible, inst, admittersOf inst.instanceOwnerIss prof.keyResolution⟩
-      (V.subj inst.instanceSubject) e
+  profile : ∃ prof, decodeProfileArtifact pB = some prof ∧ C1FactsV π inst prof ∧
+    CoreSpec π ⟨π.admissible, inst, admitterIss prof⟩ (V.subj inst.instanceSubject) e
 
 /-- **`coverage_sound_view`**: under `TranscriptFaithful T V` (TB2), an accepted transcript yields
 the coverage specification over the log view itself, not only over `T`. -/
@@ -454,8 +519,8 @@ theorem coverage_sound_view (π : AdmissionProfile) (inst : InstanceCommitment) 
       subst hri
       rw [hlf]
       rfl
-  · obtain ⟨prof, hp, hfx, hsp, hs1, _, hadm, _, hcore⟩ := hs.profile
-    refine ⟨prof, hp, hfx, hsp, hs1, hadm, ?_⟩
+  · obtain ⟨prof, hp, hc1, _, _, hcore⟩ := hs.profile
+    refine ⟨prof, hp, hc1, ?_⟩
     rw [hv] at hcore
     exact hcore
 

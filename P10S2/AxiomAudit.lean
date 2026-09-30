@@ -60,6 +60,7 @@ permitted axioms of `profile/AXIOM_POLICY.md`.
 #print axioms P10S2.decTail_rt
 #print axioms P10S2.decTail_eq
 #print axioms P10S2.entryC_first
+#print axioms P10S2.elemC_first
 #print axioms P10S2.decode_encode_profile
 #print axioms P10S2.encode_decode_profile
 #print axioms P10S2.decode_encode_transcript

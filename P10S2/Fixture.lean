@@ -25,6 +25,8 @@ structure AdmissionProfile extends P10.Profile where
   inE_spec   : ∀ e, inE e ↔ inEb e = true
   /-- Fixture identifier the concrete profile artifact must carry (prereg §6a). -/
   fixtureId  : List Nat
+  /-- Frozen canonical token of an evidence value (input of `EvidenceDigestV0`, prereg §6b). -/
+  evidenceTok : Evidence → List Nat
 
 inductive FxItem
   | first  (b : Bool)
@@ -56,7 +58,8 @@ def fx : AdmissionProfile :=
     bundle := fxBundle
     inEb := inEB
     inE_spec := fun _ => Iff.rfl
-    fixtureId := bytes% "p10-s2-fx-v0" }
+    fixtureId := bytes% "p10-s2-fx-v0"
+    evidenceTok := P10.Wire.evidenceTok }
 
 /-- The Lean semantic projection of the fixture is exactly the frozen S1 profile. -/
 theorem fx_projection : fx.toProfile = P10.S1.profile := rfl
