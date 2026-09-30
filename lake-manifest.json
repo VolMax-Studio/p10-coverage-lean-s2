@@ -1,0 +1,6 @@
+{"version": "1.2.0",
+ "packagesDir": ".lake/packages",
+ "packages": [],
+ "name": "«p10-coverage-lean-s2»",
+ "lakeDir": ".lake",
+ "fixedToolchain": false}

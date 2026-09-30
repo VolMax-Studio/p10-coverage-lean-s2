@@ -1,0 +1,35 @@
+name: verify
+# S2a scaffold CI. A pass means ONLY the scaffold self-check; it claims no S2
+# coverage theorem and no ratification of S2.
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: System packages (Lean runtime libs)
+        run: sudo apt-get update && sudo apt-get install -y curl unzip python3-venv libgmp10 libuv1t64
+      - name: Python environment (pinned)
+        run: |
+          python3 -m venv .venv
+          .venv/bin/pip install --require-virtualenv -r requirements.lock
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
+      - name: Pinned Lean toolchain (package digest checked; no elan, no lake update)
+        run: |
+          .venv/bin/python --version
+          eval "$(scripts/install_toolchain.sh)"
+          echo "$PWD/.toolchain/lean4-4.33.0/bin" >> "$GITHUB_PATH"
+      - name: Forbidden construct / scope check
+        run: python3 scripts/check_no_forbidden_scope.py
+      - name: Lean build
+        run: |
+          lean --version
+          lake build
+      - name: Scaffold self-check
+        run: ./scripts/verify.sh
