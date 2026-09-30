@@ -2,3 +2,5 @@
 build/
 *.olean
 __pycache__/
+.toolchain/
+.venv/
