@@ -39,6 +39,10 @@ lean --version
 [[ "$(cat lean-toolchain)" == "leanprover/lean4:v4.33.0" ]] || die "lean-toolchain differs from the pinned identifier"
 lean --version | grep -q "version 4.33.0" || die "lean is not 4.33.0"
 
+step "accepted preregistration artifact (exact bytes)"
+echo "5f5a7eaf538f3051adca384f0aaf231f93c218682401fc75be1a3566c8283c82  profile/S2_PREREG_v0.2.4_ACCEPTED_S2a.md" \
+  | sha256sum --check --quiet || die "profile/S2_PREREG_v0.2.4_ACCEPTED_S2a.md differs from the accepted artifact"
+
 step "frozen S1 dependency (vendored tag v0.1.0-s1-ratified)"
 python3 scripts/s2a.py s1-identity
 

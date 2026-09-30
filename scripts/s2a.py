@@ -326,8 +326,10 @@ def cmd_s1_identity():
 
 
 MUSTFAIL = {
-    "N0_e2e.lean": ["proved that the proposition", "is false"],
-    "N11_e2e.lean": ["proved that the proposition", "is false"],
+    # the false `hCov` is refuted either by the elaborator's `decide` ("is false") or by the kernel
+    # (`decide +kernel` application type mismatch), depending on how early the checker rejects
+    "N0_e2e.lean": ["cov inst pB T = CoverageOutcome.accept", ("is false", "(kernel) application type mismatch")],
+    "N11_e2e.lean": ["cov inst pB T = CoverageOutcome.accept", ("is false", "(kernel) application type mismatch")],
     "no_hCov.lean": ["function type", "coverageCheck"],
     "no_hFaithful.lean": ["function type", "TranscriptFaithful"],
 }
@@ -343,7 +345,8 @@ def cmd_mustfail():
         out = r.stdout + r.stderr
         if r.returncode == 0:
             die(f"must-fail file {name} COMPILED (the composition theorem is unsound)")
-        miss = [f for f in frags if f not in out]
+        miss = [f for f in frags
+                if not (any(a in out for a in f) if isinstance(f, tuple) else f in out)]
         if miss:
             die(f"must-fail file {name} failed for an unexpected reason (missing {miss}):\n{out[:800]}")
         print(f"  must-fail {name}: rejected as expected")
@@ -381,7 +384,7 @@ def cmd_check_audit():
     for l, n in zip(lines, names):
         if "does not depend on any axioms" in l:
             continue
-        m = re.match(r"'([^']+)' depends on axioms: \[(.*)\]$", l)
+        m = re.match(r"'(.+)' depends on axioms: \[(.*)\]$", l)
         if not m or m.group(1) != n:
             die(f"unparsable audit line: {l}")
         used = {a.strip() for a in m.group(2).split(",")}
