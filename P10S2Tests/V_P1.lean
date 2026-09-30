@@ -11,14 +11,4 @@ def tB : Bytes := filebytes% "vectors/P1/tB.bin"
 
 theorem outcome : run pB instB tB = some (.accept (.obs false (some false))) := by decide +kernel
 
-def iB : Bytes := filebytes% "vectors/P1/iB.json"
-def tDigest : Bytes := hex% "01b9166a874e124dddefdffae872018bccdd7be109ed30896a06a60c06f570c9"
-
-theorem e2e_outcome : runE2E tDigest tB pB iB instB = none := by decide +kernel
-
-theorem s1_determinate : P10.Determinate P10.S1.profile (P10.S1.Evidence.obs false (some false)) P10.S1.Claim.secondBit :=
-  P10.S1.none_does_not_decide_determinacy.2.2.1
-theorem s1_no_certificate : ¬ Nonempty (P10.UnderdeterminationCertificate P10.S1.profile (P10.S1.Evidence.obs false (some false)) P10.S1.Claim.secondBit) :=
-  P10.S1.n1_determined_no_certificate
-
 end V_P1

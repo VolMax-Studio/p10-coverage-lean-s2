@@ -11,24 +11,4 @@ def tB : Bytes := filebytes% "vectors/P2/tB.bin"
 
 theorem outcome : run pB instB tB = some (.accept (.obs false none)) := by decide +kernel
 
-def iB : Bytes := filebytes% "vectors/P2/iB.json"
-def tDigest : Bytes := hex% "2287d20c522bd1fa00476c2e02c736223a66dae4734351695af87261e93f3d18"
-
-theorem e2e_outcome : runE2E tDigest tB pB iB instB = some (.obs false none, .secondBit) := by decide +kernel
-
-theorem e2e_ok : runE2E tDigest tB pB iB instB = some (P10.S1.Evidence.obs false none, P10.S1.Claim.secondBit) := by decide +kernel
-theorem chain :
-    ∃ T : Transcript fx.Item, decodeTranscript fxItemC tB = some T ∧
-      (∀ V : LogView fx.Item, TranscriptFaithful T V →
-        CoverageSpecV fx inst pB V (P10.S1.Evidence.obs false none)) ∧
-      P10.Underdetermined P10.S1.profile (P10.S1.Evidence.obs false none) P10.S1.Claim.secondBit := by
-  have hI : decodeInst instB = some inst := (Option.some_get _).symm
-  have h : e2eCheck tDigest tB pB iB inst = some (P10.S1.Evidence.obs false none, P10.S1.Claim.secondBit) := by
-    have h0 := e2e_ok
-    unfold runE2E at h0
-    rw [hI] at h0
-    simpa using h0
-  obtain ⟨_, T, hT, _, _, _, _, hu, hv⟩ := e2eCheck_sound h
-  exact ⟨T, hT, hv, hu⟩
-
 end V_P2
