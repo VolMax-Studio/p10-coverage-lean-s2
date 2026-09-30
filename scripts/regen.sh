@@ -12,6 +12,7 @@ echo "verifier manifest digest: $md"
 lake build P10S2Tests.Catalogue --wfail
 lake env lean --run P10S2Tests/Gen.lean "$md"          # writes vectors/ and P10S2Tests/V_*.lean
 rm -f .lake/build/lib/lean/P10S2Tests/V_*.olean .lake/build/lib/lean/P10S2Tests/V_*.ilean
+python3 scripts/s2a.py gen-differential
 vd="$(python3 scripts/s2a.py gen-vector)"
 printf 'verifier_manifest_sha256=%s\nvector_manifest_sha256=%s\n' "$md" "$vd" > profile/S2A_PINS.txt
 echo "vector manifest digest: $vd"

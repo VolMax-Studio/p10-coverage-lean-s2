@@ -43,6 +43,10 @@ step "accepted preregistration artifact (exact bytes)"
 echo "5f5a7eaf538f3051adca384f0aaf231f93c218682401fc75be1a3566c8283c82  profile/S2_PREREG_v0.2.4_ACCEPTED_S2a.md" \
   | sha256sum --check --quiet || die "profile/S2_PREREG_v0.2.4_ACCEPTED_S2a.md differs from the accepted artifact"
 
+step "accepted preregistration v0.2.5 (exact bytes)"
+echo "e077c30edb33d4799079185ccc4bb3add7e32a5ee4318a358c77a139039c437f  profile/S2_PREREG_v0.2.5.md" \
+  | sha256sum --check --quiet || die "profile/S2_PREREG_v0.2.5.md differs from the accepted artifact"
+
 step "frozen S1 dependency (vendored tag v0.1.0-s1-ratified)"
 python3 scripts/s2a.py s1-identity
 
@@ -73,7 +77,10 @@ python3 scripts/s2a.py check-vector
 [[ "$(sha256sum manifest/VectorManifestS2aV0.json | cut -d' ' -f1)" == "$pin_t" ]] \
   || die "VectorManifestS2aV0 digest differs from the pin"
 
-step "vectors P1-P3, N0-N23 (+ additions): kernel-checked outcomes (decide +kernel)"
+step "LeafEncodeV0 spec artifact digest (independent recomputation)"
+python3 scripts/s2a.py leafspec
+
+step "vectors P1-P3, P2x, N0-N36c, D1, D2 (+ additions): kernel-checked outcomes (decide +kernel)"
 lake build P10S2Tests --wfail
 
 step "end-to-end must-fail files (N0, N11, and the dropped-hypothesis controls)"

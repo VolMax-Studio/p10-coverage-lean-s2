@@ -10,6 +10,8 @@ Subcommands
   s1-identity                     vendored S1 == frozen tag (tree id, SHA256SUMS, manifest digest)
   mustfail                        every P10S2TestsMustFail file must fail with its expected message
   gen-audit / check-audit         generate / verify P10S2/AxiomAudit.lean and its output
+  gen-differential                write D1/D2 expected bytes from independent Python tooling (S1 p10tool JCS)
+  leafspec                        every pB.leaf_encoding_spec_digest equals LeafEncodeSpecArtifactDigestV0(spec file)
   matrix                          result matrix (vector -> expected -> kernel-checked theorem)
 Everything fails closed: any problem is a non-zero exit. No network. No `lake update`.
 """
@@ -38,6 +40,7 @@ LEAN_EXE_DIGEST = "9842f89b9a1874db969cc58933e4117c397338f795eb8febffeb79edd5272
 HARNESS = ["scripts/s2a.py", "scripts/verify.sh", "scripts/install_toolchain.sh",
            "scripts/OleanImports.lean", "scripts/check_no_forbidden_scope.py",
            "scripts/check_env.py", "requirements.lock"]
+LEAF_SPEC = "profile/LeafEncodeV0_SPEC.md"          # frozen, manifest-covered spec artifact (G6-B3)
 POLICY_FILES = ["profile/AXIOM_POLICY.md", "profile/ACCEPTANCE_COMMAND.txt"]
 VECTOR_DIRS = ["vectors", "P10S2Tests", "P10S2TestsMustFail"]
 VECTOR_ROOT_FILES = ["P10S2Tests.lean"]
@@ -71,7 +74,7 @@ def canon(obj) -> bytes:
 
 def checker_sources():
     return ["P10S2.lean"] + sorted(str(p.relative_to(ROOT)) for p in (ROOT / "P10S2").glob("*.lean")) \
-        + HARNESS
+        + HARNESS + [LEAF_SPEC]
 
 
 def olean_paths():
@@ -394,6 +397,42 @@ def cmd_check_audit():
     return r.stdout
 
 
+def leaf_spec_digest() -> str:
+    """LeafEncodeSpecArtifactDigestV0: SHA-256 over two fixed prefixes and the raw file bytes (no JCS)."""
+    return sha(b"P10-LeafEncodeSpecArtifact-v0:" + b"text-markdown-utf-8-v0:" + (ROOT / LEAF_SPEC).read_bytes())
+
+
+def cmd_gen_differential():
+    sys.path.insert(0, str(S1_DIR / "scripts"))
+    import p10tool  # frozen S1 tooling: jcs()
+    def d(obj):
+        return bytes.fromhex(sha(p10tool.jcs(obj)))
+    for name, data in (("D1/claim_digest.bin", d({"claim": "secondBit"})),
+                       ("D1/evidence_digest.bin", d({"evidence": "f0s0"})),
+                       ("D2/spec_digest.bin", bytes.fromhex(leaf_spec_digest()))):
+        path = ROOT / "vectors" / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(data)
+    print("differential vectors written")
+
+
+def cmd_leafspec():
+    want, n = leaf_spec_digest(), 0
+    for p in sorted((ROOT / "vectors").glob("*/pB.json")):
+        try:
+            got = json.loads(p.read_bytes())["leaf_encoding_spec_digest"]
+        except Exception:
+            continue
+        if got != want:
+            die(f"{p}: leaf_encoding_spec_digest {got} != {want}")
+        n += 1
+    if n < 10:
+        die("leafspec: too few pB files checked")
+    if (ROOT / "vectors/D2/spec_digest.bin").read_bytes().hex() != want:
+        die("D2 expected bytes differ from the recomputed spec digest")
+    print(f"leaf spec digest {want} matches {n} pB files and D2")
+
+
 def cmd_matrix():
     rows = []
     for exp in sorted((ROOT / "vectors").glob("*/expected.txt")):
@@ -401,7 +440,9 @@ def cmd_matrix():
         vid = f["id"]
         mod = ROOT / "P10S2Tests" / f"V_{vid}.lean"
         olean = ROOT / ".lake" / "build" / "lib" / "lean" / "P10S2Tests" / f"V_{vid}.olean"
-        if not mod.is_file() or "theorem outcome" not in mod.read_text():
+        diff = f["condition"] == "differential"
+        if not mod.is_file() or ("theorem " not in mod.read_text() if diff
+                                 else "theorem outcome" not in mod.read_text()):
             die(f"vector {vid} has no kernel-checked `outcome` theorem")
         if not olean.is_file():
             die(f"vector {vid}: test module not built")
@@ -411,11 +452,11 @@ def cmd_matrix():
     hdr = ("id", "prereg", "cond", "expected (Lean)", "tb7", "status")
     for r in [hdr] + rows:
         print("  " + "  ".join(c.ljust(w[i]) for i, c in enumerate(r)))
-    need = {"P1", "P2", "P3"} | {f"N{i}" for i in range(0, 24)}
+    need = {"P1", "P2", "P2x", "P3", "D1", "D2"} | {f"N{i}" for i in range(0, 37)}
     have = {r[0] for r in rows} | {re.sub(r"[a-z]$", "", r[0]) for r in rows}
     if not need <= have:
         die(f"missing preregistered vectors: {sorted(need - have)}")
-    print(f"matrix: {len(rows)} vectors (all preregistered P1-P3, N0-N23 present)")
+    print(f"matrix: {len(rows)} vectors (all preregistered P1-P3, P2x, N0-N36c, D1 present)")
 
 
 def main():
@@ -423,6 +464,7 @@ def main():
             "gen-vector": cmd_gen_vector, "check-vector": cmd_check_vector,
             "partition": cmd_partition, "tb7-vectors": cmd_tb7_vectors,
             "s1-identity": cmd_s1_identity, "mustfail": cmd_mustfail,
+            "gen-differential": cmd_gen_differential, "leafspec": cmd_leafspec,
             "gen-audit": cmd_gen_audit, "check-audit": cmd_check_audit, "matrix": cmd_matrix}
     if len(sys.argv) >= 2 and sys.argv[1] == "tb7" and len(sys.argv) == 3:
         return cmd_tb7(sys.argv[2])

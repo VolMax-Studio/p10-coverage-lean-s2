@@ -38,9 +38,10 @@ def replaceFirst (needle rep : Bytes) : Bytes → Bytes
 def s1Bytes (c : P10.S1.Claim) (e : P10.S1.Evidence) (w0 w1 : P10.S1.World) : Bytes :=
   P10.Wire.encode ⟨c, e, w0, w1⟩
 
-def catalogue (md : Tok) : List VectorSpec :=
-  let pB := encodeProfileArtifact (profileOf md)
-  let inst := instOf pB
+def catalogue (md ls : Tok) : List VectorSpec :=
+  let prof0 := profileOf md ls
+  let pB := encodeProfileArtifact prof0
+  let inst := instOfProf prof0
   let ok (id prereg cond : String) (leaves : List Leaf) (expect : String) : VectorSpec :=
     { id, prereg, cond, pB, inst, T := some (tOf inst leaves), expect }
   let eUb := s1Bytes .secondBit (.obs false none) .w00 .w01
@@ -49,13 +50,22 @@ def catalogue (md : Tok) : List VectorSpec :=
   -- pB variants (commitment re-digested so that only the pB property differs)
   let withPB (id prereg cond : String) (pBv : Bytes) (expect : String) (tb7 : Option String) :
       VectorSpec :=
-    let instv := instOf pBv
+    let instv := { inst with profileDigest := ⟨sha256 pBv⟩ }
     { id, prereg, cond, pB := pBv, inst := instv, T := some (tOf instv (standard instv [a1] [2])),
       expect, tb7 }
+  let withProf (id prereg cond : String) (pr : ProfileArtifact) (expect : String)
+      (tb7 : Option String) : VectorSpec :=
+    let instv := instOfProf pr
+    { id, prereg, cond, pB := encodeProfileArtifact pr, inst := instv,
+      T := some (tOf' instv (keyResolutionDigestV0 pr.keyResolution) (standard instv [a1] [2])),
+      expect, tb7 }
+  let okI (id prereg cond : String) (i : InstanceCommitment) (leaves : List Leaf)
+      (expect : String) : VectorSpec :=
+    { id, prereg, cond, pB, inst := i, T := some (tOf i leaves), expect }
   let altMd := mkTok (bytes% "0000000000000000000000000000000000000000000000000000000000000000")
   [
   -- ===== positive controls =====
-  { ok "P1" "S2-P1" "accept" (standard inst [a1, a2] [2, 3])
+  { ok "P1" "S2-P1" "accept" (standard inst [a1, a2] [2, 3] dD)
       ".accept (.obs false (some false))" with
     iB := some eDb, e2e := some "none", tb7 := some "PASS",
     extra := "theorem s1_determinate : P10.Determinate P10.S1.profile (P10.S1.Evidence.obs false (some false)) P10.S1.Claim.secondBit :=\n  P10.S1.none_does_not_decide_determinacy.2.2.1\ntheorem s1_no_certificate : ¬ Nonempty (P10.UnderdeterminationCertificate P10.S1.profile (P10.S1.Evidence.obs false (some false)) P10.S1.Claim.secondBit) :=\n  P10.S1.n1_determined_no_certificate\n",
@@ -68,7 +78,7 @@ def catalogue (md : Tok) : List VectorSpec :=
       ([lf_pc inst, lf_ic inst, a1] ++ [lf_closure inst [lf_pc inst, lf_ic inst, a1] [2]])
       ".halt .c11_noAdjudicationAfterClosure" with
     note := "PREREG CONFLICT: P2 lists no adjudication but C11 requires one; see README" },
-  { ok "P3" "S2-P3" "accept" (standard inst [a1, a3] [2, 3])
+  { ok "P3" "S2-P3" "accept" (standard inst [a1, a3] [2, 3] dI)
       ".accept P10.S1.Evidence.inconsistent" with
     extra := "theorem s1_cannot_certify : ¬ Nonempty (P10.UnderdeterminationCertificate P10.S1.profile P10.S1.Evidence.inconsistent P10.S1.Claim.secondBit) :=\n  P10.S1.n4_no_certificate_not_determinate.1\n",
     note := "masking control: conflicting admissions accepted as `inconsistent`; S1 cannot certify" },
@@ -97,7 +107,7 @@ def catalogue (md : Tok) : List VectorSpec :=
   ok "N6c" "S2-N6b (conflicting commitment)" "C4"
     (standard inst
       [.e ownerIss .instanceCommit .verified
-        (some (.instanceCommit { inst with claimDigest := claimDigest .firstBit })), a1] [3])
+        (some (.instanceCommit { inst with claimDigest := claimDigestV0 .firstBit })), a1] [3])
     ".reject .c4_multipleCommitments",
   ok "N7a" "S2-N7 (payload unavailable)" "C2"
     (standard inst [.e adm1 .admission .verified none] [2])
@@ -115,10 +125,11 @@ def catalogue (md : Tok) : List VectorSpec :=
     T := some { tOf inst (standard inst [a1] [2]) with
       logIdentityDigest := ⟨bytes% "some-other-log"⟩ }
     expect := ".reject .c1_logIdentity" },
-  { id := "N9", prereg := "S2-N9", cond := "C1", pB := encodeProfileArtifact (profileOf md keyResAlt),
-    inst := instOf (encodeProfileArtifact (profileOf md keyResAlt))
-    T := some (tOf inst (standard inst [a1] [2]))
-    expect := ".reject .c1_keyResolutionDigest",
+  { id := "N9", prereg := "S2-N9", cond := "C1b",
+    pB := encodeProfileArtifact (profileOf md ls keyResAlt),
+    inst := instOfProf (profileOf md ls keyResAlt),
+    T := some (tOf (instOfProf (profileOf md ls keyResAlt)) (standard (instOfProf (profileOf md ls keyResAlt)) [a1] [2]))
+    expect := ".reject .c1b_keyResolutionDigest",
     note := "same transcript, different key mapping; commitment re-digested" },
   ok "N10" "S2-N10" "accept"
     (withClosure inst [lf_pc inst, lf_ic inst, a1, .other siblingSub, .other siblingSub] [2]) eUexp,
@@ -140,7 +151,7 @@ def catalogue (md : Tok) : List VectorSpec :=
     (let pre := [lf_pc inst, lf_ic inst, a1]
      pre ++ [lf_closure inst pre [2],
        .e adm1 .closure .verified
-         (some (.closure ⟨inst.instanceSubject, true, [2], closedDigest, digestBefore inst pre⟩)),
+         (some (.closure ⟨inst.instanceSubject, true, [2], dU, digestBefore inst pre⟩)),
        lf_adj 0 1 4])
     ".reject .c5_citesNonOwnerLifecycle",
   ok "N15" "S2-N15" "C8"
@@ -158,20 +169,20 @@ def catalogue (md : Tok) : List VectorSpec :=
     inst := { inst with profileDigest := ⟨bytes% "not-the-digest-of-pB"⟩ },
     T := some (tOf inst (standard inst [a1] [2]))
     expect := ".reject .c1_profileDigest" },
-  { withPB "N20" "S2-N20" "TB7" (encodeProfileArtifact (profileOf altMd)) eUexp (some "REJECT") with
+  { withProf "N20" "S2-N20" "TB7" (profileOf altMd ls) eUexp (some "REJECT") with
     note := "Lean accepts (manifest identity is not a Lean fact); the TB7 harness REJECTs" },
-  { withPB "N21" "S2-N21" "TB7"
-      (encodeProfileArtifact (profileOf md (mref := mkTok (bytes% "MissingManifest.json")))) eUexp
+  { withProf "N21" "S2-N21" "TB7"
+      (profileOf md ls (mref := mkTok (bytes% "MissingManifest.json"))) eUexp
       (some "HALT") with
     note := "Lean accepts; the TB7 harness HALTs (manifest ref does not resolve)" },
   withPB "N22a" "S2-N22 (fixture_id)" "C1"
-    (encodeProfileArtifact (profileOf md (fixtureId := mkTok (bytes% "other-fixture-v9"))))
+    (encodeProfileArtifact (profileOf md ls (fixtureId := mkTok (bytes% "other-fixture-v9"))))
     ".reject .c1_profileFields" none,
   withPB "N22b" "S2-N22 (normative_profile_digest)" "C1"
-    (encodeProfileArtifact (profileOf md (spec := mkTok (bytes% "sha256:0000"))))
+    (encodeProfileArtifact (profileOf md ls (spec := mkTok (bytes% "sha256:0000"))))
     ".reject .c1_profileFields" none,
   withPB "N22c" "S2-N22 (s1_profile_token)" "C1"
-    (encodeProfileArtifact (profileOf md (s1tok := mkTok (bytes% "p10-s1-other-v0"))))
+    (encodeProfileArtifact (profileOf md ls (s1tok := mkTok (bytes% "p10-s1-other-v0"))))
     ".reject .c1_profileFields" none,
   withPB "N23a" "S2-N23 (extra field)" "C1"
     (replaceFirst (bytes% "{\"admission") (bytes% "{\"extra\":\"x\",\"admission") pB)
@@ -185,7 +196,7 @@ def catalogue (md : Tok) : List VectorSpec :=
   -- ===== additions (not in the prereg table) =====
   { id := "X1", prereg := "addition", cond := "C1", pB,
     inst := { inst with authorizedAdmitterSetDigest := ⟨bytes% "wrong-admitter-set"⟩ },
-    T := some (tOf inst (standard inst [a1] [2])), expect := ".reject .c1_admitterSetDigest" },
+    T := some (tOf inst (standard inst [a1] [2])), expect := ".reject .c1b_admittersDigest" },
   ok "X2" "addition (commitment differs from frozen inst)" "C4"
     (withClosure inst [lf_pc inst,
       .e ownerIss .instanceCommit .verified
@@ -212,7 +223,101 @@ def catalogue (md : Tok) : List VectorSpec :=
     (let pre := [lf_pc inst, lf_ic inst, a1]
      pre ++ [lf_closure inst pre [2],
        .e adm1 .adjudication .verified (some (.adjudication 0 1 3))])
-    ".halt .c11_noAdjudicationAfterClosure"
+    ".halt .c11_noAdjudicationAfterClosure",
+  -- ===== prereg v0.2.5 =====
+  ok "N24" "S2-N24 (B1)" "C13" (standard inst [a1, a2] [2, 3] ⟨bytes% "wrong-closed-digest"⟩)
+    ".reject .c13_closedEvidenceDigest",
+  ok "N25" "S2-N25 (B1)" "C13" (standard inst [a1, a2] [2, 3] dU)
+    ".reject .c13_closedEvidenceDigest",
+  okI "N26" "S2-N26 (B2)" "C1a"
+    { inst with issuerId := intruder, instanceSubject := subjectDeriveV0 intruder reqId }
+    (standard { inst with issuerId := intruder, instanceSubject := subjectDeriveV0 intruder reqId }
+      [a1] [2])
+    ".reject .c1a_ownerNotIssuer",
+  okI "N27" "S2-N27 (B2)" "C1a"
+    { inst with instanceSubject := ⟨bytes% "p10s2sub:wrong"⟩ }
+    (standard { inst with instanceSubject := ⟨bytes% "p10s2sub:wrong"⟩ } [a1] [2])
+    ".reject .c1a_subjectDerivation",
+  okI "N28a" "S2-N28a (B2,B4)" "C1c" { inst with subjectDerivationDigest := ⟨bytes% "wrong-digest"⟩ }
+    (standard { inst with subjectDerivationDigest := ⟨bytes% "wrong-digest"⟩ } [a1] [2])
+    ".reject .c1c_subjectDerivationDigest",
+  okI "N28b" "S2-N28b (B4)" "C1c" { inst with leafEncodingProfileDigest := ⟨bytes% "wrong-digest"⟩ }
+    (standard { inst with leafEncodingProfileDigest := ⟨bytes% "wrong-digest"⟩ } [a1] [2])
+    ".reject .c1c_leafEncodingProfileDigest",
+  okI "N28c" "S2-N28c (B4)" "C1c" { inst with evidenceScopeDigest := ⟨bytes% "wrong-digest"⟩ }
+    (standard { inst with evidenceScopeDigest := ⟨bytes% "wrong-digest"⟩ } [a1] [2])
+    ".reject .c1c_evidenceScopeDigest",
+  okI "N28d" "S2-N28d (B4)" "C1c" { inst with admissionRuleDigest := ⟨bytes% "wrong-digest"⟩ }
+    (standard { inst with admissionRuleDigest := ⟨bytes% "wrong-digest"⟩ } [a1] [2])
+    ".reject .c1c_admissionRuleDigest",
+  okI "N28e" "S2-N28e (B4)" "C1c" { inst with coverageRuleDigest := ⟨bytes% "wrong-digest"⟩ }
+    (standard { inst with coverageRuleDigest := ⟨bytes% "wrong-digest"⟩ } [a1] [2])
+    ".reject .c1c_coverageRuleDigest",
+  okI "N29" "S2-N29 (B3)" "C1b"
+    { inst with authorizedAdmitterSetDigest := authorizedAdmittersDigestV0 [adm1.bytes] }
+    (standard { inst with authorizedAdmitterSetDigest := authorizedAdmittersDigestV0 [adm1.bytes] }
+      [a1] [2])
+    ".reject .c1b_admittersDigest",
+  ok "N30" "S2-N30 (B3: key without authorization)" "C8"
+    (standard inst [a1, adm intruder (.second false)] [2, 3])
+    ".reject .c8_refNotRelevantAdmission",
+  (let pr := profileOf md ls keyResNo2
+   let i := instOfProf pr
+   { id := "N31", prereg := "S2-N31 (B3: authorization without key)", cond := "C2",
+     pB := encodeProfileArtifact pr, inst := i,
+     T := some (tOf' i (keyResolutionDigestV0 keyResNo2)
+       (standard i [a1, .e adm2 .admission .keyUnavailable (some (.admission (.second false)))]
+         [2, 3])),
+     expect := ".halt .c2_keyUnavailable" }),
+  (let pre := [lf_pc inst, lf_ic inst, a1]
+   let mk (id : String) (x y z : Nat) : VectorSpec :=
+     ok id s!"S2-{id} (B5)" "C11" (pre ++ [lf_closure inst pre [2], lf_adj x y z])
+       ".reject .c11_adjudicationRefsMismatch"
+   mk "N32a" 1 1 3),
+  (let pre := [lf_pc inst, lf_ic inst, a1]
+   ok "N32b" "S2-N32b (B5)" "C11" (pre ++ [lf_closure inst pre [2], lf_adj 0 0 3])
+     ".reject .c11_adjudicationRefsMismatch"),
+  (let pre := [lf_pc inst, lf_ic inst, a1]
+   ok "N32c" "S2-N32c (B5)" "C11" (pre ++ [lf_closure inst pre [2], lf_adj 0 1 2])
+     ".reject .c11_adjudicationRefsMismatch"),
+  (let pre := [lf_pc inst, lf_ic inst, a1]
+   ok "N32d" "S2-N32d (B5)" "C11" (pre ++ [lf_closure inst pre [2], lf_adj 0 1 3, lf_adj 0 1 2])
+     ".reject .c11_adjudicationRefsMismatch"),
+  (let i := { inst with claimDigest := ⟨sha256 (P10.Wire.claimTok .secondBit)⟩ }
+   { id := "N33", prereg := "S2-N33 (B6: withdrawn raw-token claim digest)", cond := "E2E",
+     pB, inst := i, T := some (tOf i (standard i [a1] [2])), expect := eUexp,
+     iB := some eUb, e2e := some "none",
+     note := "coverage accepts; the composed verdict is none because claim_digest ≠ ClaimDigestV0" }),
+  (let pre := [lf_pc inst, lf_ic inst, a1]
+   ok "N34" "S2-N34 (I-2: legacy binary preclosure digest)" "C6"
+     (pre ++ [.e ownerIss .closure .verified
+         (some (.closure ⟨inst.instanceSubject, true, [2], dU, legacyPreclosure (viewBefore inst pre)⟩)),
+       lf_adj 0 1 3])
+     ".halt .c6_noValidClosure"),
+  { id := "N35", prereg := "S2-N35 (I-3: legacy binary key-resolution digest)", cond := "C1b",
+    pB, inst,
+    T := some (tOf' inst (legacyKeyRes keyRes) (standard inst [a1] [2])),
+    expect := ".reject .c1b_keyResolutionDigest" },
+  ok "N36a" "S2-N36a (G6-B1)" "C3"
+    (withClosure inst [lf_pc inst, lf_pc inst, lf_ic inst, a1] [3])
+    ".reject .c3_multipleProfileCommitments",
+  ok "N36b" "S2-N36b (G6-B1)" "C3"
+    (withClosure inst [lf_pc inst, lf_pc_other, lf_ic inst, a1] [3])
+    ".reject .c3_multipleProfileCommitments",
+  ok "N36c" "S2-N36c (G6-B1)" "C3"
+    (withClosure inst [lf_pc_other, lf_ic inst, a1] [2])
+    ".reject .c3_profileDigestMismatch",
+  -- additions for checks the prereg table does not name
+  (let pr := profileOf md ls (admitters := admittersWithOwner)
+   let i := instOfProf pr
+   { id := "X9", prereg := "addition (owner listed in authorized_admitters)", cond := "C1b",
+     pB := encodeProfileArtifact pr, inst := i, T := some (tOf i (standard i [a1] [2])),
+     expect := ".reject .c1_ownerInAdmitters" }),
+  (let bad : Iss := ⟨bytes% "bad iss"⟩
+   let sb := subjectDeriveV0 bad reqId
+   let i := { inst with issuerId := bad, instanceOwnerIss := bad, instanceSubject := sb }
+   okI "X10" "addition (issuer outside the token alphabet)" "C1a" i (standard i [a1] [2])
+     ".reject .c1a_issuerNotToken")
   ]
 
 end P10S2Tests
