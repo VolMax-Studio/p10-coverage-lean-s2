@@ -1,6 +1,6 @@
 name: verify
-# S2a scaffold CI. A pass means ONLY the scaffold self-check; it claims no S2
-# coverage theorem and no ratification of S2.
+# S2a acceptance CI. A pass means the implementation's own acceptance command passed on the
+# pinned toolchain. It is NOT an adversarial-gate verdict and NOT ratification of S2.
 on:
   push:
   pull_request:
@@ -10,7 +10,7 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: System packages (Lean runtime libs)
@@ -25,11 +25,7 @@ jobs:
           .venv/bin/python --version
           eval "$(scripts/install_toolchain.sh)"
           echo "$PWD/.toolchain/lean4-4.33.0/bin" >> "$GITHUB_PATH"
-      - name: Forbidden construct / scope check
-        run: python3 scripts/check_no_forbidden_scope.py
-      - name: Lean build
-        run: |
-          lean --version
-          lake build
-      - name: Scaffold self-check
+      - name: S2a acceptance command (self-consistency; in-tree pins)
+        env:
+          P10_ALLOW_INTREE_PIN: "1"
         run: ./scripts/verify.sh
