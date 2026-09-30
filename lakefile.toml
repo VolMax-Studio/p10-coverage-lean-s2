@@ -1,0 +1,12 @@
+name = "p10-coverage-lean-s2"
+version = "0.0.1"
+defaultTargets = ["P10S2"]
+
+# Deliberately NO `require`: the S1 dependency is pinned in S1_DEPENDENCY.md
+# only, until a Lake-level binding is decided (see that file).
+
+[leanOptions]
+autoImplicit = false
+
+[[lean_lib]]
+name = "P10S2"
