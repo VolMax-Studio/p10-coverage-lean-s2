@@ -55,9 +55,8 @@ def main (args : List String) : IO UInt32 := do
     let md : Tok := ⟨mdBytes, h⟩
     let specBytes := (← IO.FS.readBinFile "profile/LeafEncodeV0_SPEC.md").toList.map UInt8.toNat
     let lsBytes := (P10S2.hexOf (leafEncodeSpecArtifactDigestV0 specBytes).bytes)
-    let some ls : Option Tok :=
-      if h2 : allTokB lsBytes = true then some ⟨lsBytes, h2⟩ else none
-      | IO.eprintln "leaf spec digest is not a token"; return 2
+    let lsO : Option Tok := if h2 : allTokB lsBytes = true then some ⟨lsBytes, h2⟩ else none
+    let some ls := lsO | IO.eprintln "leaf spec digest is not a token"; return 2
     let mut index := "id\tprereg\tcondition\tlean\ttb7\n"
     for v in catalogue md ls do
       let dir : System.FilePath := s!"vectors/{v.id}"
