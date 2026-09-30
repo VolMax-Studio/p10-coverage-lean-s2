@@ -195,4 +195,56 @@ theorem e2eCheck_sound {tDigest tB pB iB : Bytes} {inst : InstanceCommitment}
       · simp at h
   · simp at h
 
+/-- An authorized (owner or admitter) entry whose key is unavailable never reaches a verdict. -/
+theorem unavailable_key_no_verdict (π : AdmissionProfile) (inst : InstanceCommitment)
+    (pB : Bytes) (T : Transcript π.Item) (s : π.Evidence → Bool) (prof : ProfileArtifact)
+    (hp : decodeProfileArtifact pB = some prof)
+    (hu : ∃ d ∈ T.detailed,
+      authorizedIss ⟨π.admissible, inst, admittersOf inst.instanceOwnerIss prof.keyResolution⟩
+        d.iss = true ∧ d.sig = .keyUnavailable) :
+    p10Verdict s (coverageCheck π inst pB T) = none := by
+  cases hv : p10Verdict s (coverageCheck π inst pB T) with
+  | none => rfl
+  | some v =>
+    obtain ⟨e, he, _⟩ := p10Verdict_some hv
+    have hsnd := coverage_sound π inst pB T e he
+    obtain ⟨prof', hp', _, _, _, _, _, hkeys, _⟩ := hsnd.profile
+    rw [hp] at hp'
+    have hpp : prof = prof' := Option.some.inj hp'
+    subst hpp
+    obtain ⟨d, hd, hauth, hsig⟩ := hu
+    exact absurd hsig (hkeys d hd hauth)
+
+/-- Missing checkpoint material (TB5): HALT, and no verdict. -/
+theorem missing_checkpoint_halts (π : AdmissionProfile) (inst : InstanceCommitment)
+    (pB : Bytes) (s : π.Evidence → Bool) :
+    coverageCheckM π inst pB none = .halt .tb5_checkpointMaterialUnavailable ∧
+    p10Verdict s (coverageCheckM π inst pB none) = none := ⟨rfl, rfl⟩
+
+/-- The composed end-to-end checker yields no result when coverage HALTs or REJECTs:
+HALT never yields an epistemic verdict, through the function that actually composes S2 and S1. -/
+theorem e2eCheck_none_of_not_accept {tDigest tB pB iB : Bytes} {inst : InstanceCommitment}
+    {T : Transcript fx.Item} (hT : decodeTranscript fxItemC tB = some T)
+    (hna : ∀ e, coverageCheck fx inst pB T ≠ .accept e) :
+    e2eCheck tDigest tB pB iB inst = none := by
+  cases h : e2eCheck tDigest tB pB iB inst with
+  | none => rfl
+  | some ec =>
+    obtain ⟨e, c⟩ := ec
+    obtain ⟨_, T', hT', _, hcov, _⟩ := e2eCheck_sound h
+    rw [hT] at hT'
+    have : T = T' := Option.some.inj hT'
+    subst this
+    exact absurd hcov (hna e)
+
+theorem e2eCheck_halt_none {tDigest tB pB iB : Bytes} {inst : InstanceCommitment}
+    {T : Transcript fx.Item} (hT : decodeTranscript fxItemC tB = some T) {r : HaltReason}
+    (h : coverageCheck fx inst pB T = .halt r) : e2eCheck tDigest tB pB iB inst = none :=
+  e2eCheck_none_of_not_accept hT (by intro e he; rw [h] at he; cases he)
+
+theorem e2eCheck_reject_none {tDigest tB pB iB : Bytes} {inst : InstanceCommitment}
+    {T : Transcript fx.Item} (hT : decodeTranscript fxItemC tB = some T) {r : RejectReason}
+    (h : coverageCheck fx inst pB T = .reject r) : e2eCheck tDigest tB pB iB inst = none :=
+  e2eCheck_none_of_not_accept hT (by intro e he; rw [h] at he; cases he)
+
 end P10S2

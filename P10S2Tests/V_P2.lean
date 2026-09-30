@@ -12,7 +12,7 @@ def tB : Bytes := filebytes% "vectors/P2/tB.bin"
 theorem outcome : run pB instB tB = some (.accept (.obs false none)) := by decide +kernel
 
 def iB : Bytes := filebytes% "vectors/P2/iB.json"
-def tDigest : Bytes := hex% "05354eb3aa1a8759e22cd018c314c3249745b642611a0bf4b1fd54ef2980e29e"
+def tDigest : Bytes := hex% "92fd5dbe317db71c8a7ec463901b2b6a45169896aba3f11a25d15dcb92e95ed4"
 
 theorem e2e_outcome : runE2E tDigest tB pB iB instB = some (.obs false none, .secondBit) := by decide +kernel
 
