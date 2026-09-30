@@ -50,6 +50,14 @@ FORBIDDEN_SCOPE = [
 # Premature-claim gate: these must not be DECLARED at scaffold stage.
 PREMATURE = r"\b(?:def|theorem|lemma|abbrev|structure|inductive)\s+(?:\w+\.)*(coverageCheck|coverage_sound|coverage_then_underdetermined|CoverageSpec|bundle_perm)\b"
 
+THEOREM_DECL = r"(?m)^\s*(?:theorem|lemma)\s+([A-Za-z0-9_.']+)"
+
+if "--list-theorems" in sys.argv:
+    for f in sorted((ROOT / "P10S2").glob("*.lean")):
+        for name in re.findall(THEOREM_DECL, strip(f.read_text())):
+            print(name)
+    sys.exit(0)
+
 fail = []
 files = sorted((ROOT / "P10S2").glob("*.lean")) + [ROOT / "P10S2.lean"]
 for f in files:

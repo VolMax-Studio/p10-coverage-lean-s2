@@ -34,7 +34,7 @@ lake build
 
 # Axiom audit: any theorem must have a `#print axioms` entry and only
 # standard axioms.
-thms=$(grep -hoE '^\s*theorem\s+[A-Za-z0-9_.]+' P10S2/*.lean | awk '{print $2}' || true)
+thms=$(python3 scripts/check_no_forbidden_scope.py --list-theorems)
 if [ -z "$thms" ]; then
   echo "axiom audit: no theorems present (vacuous)"
 else
