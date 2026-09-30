@@ -403,6 +403,7 @@ def leaf_spec_digest() -> str:
 
 
 def cmd_gen_differential():
+    sys.dont_write_bytecode = True  # never write into the frozen vendored S1 tree
     sys.path.insert(0, str(S1_DIR / "scripts"))
     import p10tool  # frozen S1 tooling: jcs()
     def d(obj):
