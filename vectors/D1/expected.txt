@@ -1,0 +1,7 @@
+id: D1
+prereg: S2-D1
+condition: differential
+lean: equal
+tb7: -
+e2e: -
+note: expected bytes from scripts/s2a.py gen-differential

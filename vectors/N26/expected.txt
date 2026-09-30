@@ -1,0 +1,7 @@
+id: N26
+prereg: S2-N26 (B2)
+condition: C1a
+lean: .reject .c1a_ownerNotIssuer
+tb7: -
+e2e: -
+note: 

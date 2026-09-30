@@ -9,7 +9,7 @@ def instB : Bytes := filebytes% "vectors/P1/inst.bin"
 def inst : InstanceCommitment := (decodeInst instB).get (by decide +kernel)
 def tB : Bytes := filebytes% "vectors/P1/tB.bin"
 def iB : Bytes := filebytes% "vectors/P1/iB.json"
-def tDigest : Bytes := hex% "01b9166a874e124dddefdffae872018bccdd7be109ed30896a06a60c06f570c9"
+def tDigest : Bytes := hex% "064b4bb09e1a9af63a53789462c6f4bd8fb9068370c61103873f2a64f9c89e82"
 
 theorem e2e_outcome : runE2E tDigest tB pB iB instB = none := by decide +kernel
 

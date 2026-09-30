@@ -9,6 +9,6 @@ def instB : Bytes := filebytes% "vectors/N9/inst.bin"
 def inst : InstanceCommitment := (decodeInst instB).get (by decide +kernel)
 def tB : Bytes := filebytes% "vectors/N9/tB.bin"
 
-theorem outcome : run pB instB tB = some (.reject .c1_keyResolutionDigest) := by decide +kernel
+theorem outcome : run pB instB tB = some (.reject .c1b_keyResolutionDigest) := by decide +kernel
 
 end V_N9

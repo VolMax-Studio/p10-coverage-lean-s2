@@ -1,0 +1,7 @@
+id: X10
+prereg: addition (issuer outside the token alphabet)
+condition: C1a
+lean: .reject .c1a_issuerNotToken
+tb7: -
+e2e: -
+note: 

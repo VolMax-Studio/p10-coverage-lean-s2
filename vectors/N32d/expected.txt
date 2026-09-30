@@ -1,0 +1,7 @@
+id: N32d
+prereg: S2-N32d (B5)
+condition: C11
+lean: .reject .c11_adjudicationRefsMismatch
+tb7: -
+e2e: -
+note: 

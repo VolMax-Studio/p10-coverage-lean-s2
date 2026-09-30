@@ -1,0 +1,7 @@
+id: N28e
+prereg: S2-N28e (B4)
+condition: C1c
+lean: .reject .c1c_coverageRuleDigest
+tb7: -
+e2e: -
+note: 

@@ -1,0 +1,7 @@
+id: N28a
+prereg: S2-N28a (B2,B4)
+condition: C1c
+lean: .reject .c1c_subjectDerivationDigest
+tb7: -
+e2e: -
+note: 

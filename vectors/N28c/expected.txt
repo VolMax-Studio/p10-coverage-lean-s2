@@ -1,0 +1,7 @@
+id: N28c
+prereg: S2-N28c (B4)
+condition: C1c
+lean: .reject .c1c_evidenceScopeDigest
+tb7: -
+e2e: -
+note: 

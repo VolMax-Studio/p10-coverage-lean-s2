@@ -1,0 +1,7 @@
+id: N29
+prereg: S2-N29 (B3)
+condition: C1b
+lean: .reject .c1b_admittersDigest
+tb7: -
+e2e: -
+note: 

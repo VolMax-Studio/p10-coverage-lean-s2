@@ -19,7 +19,7 @@ N7b	S2-N7 (checkpoint material missing)	TB5	.halt .tb5_checkpointMaterialUnavail
 N7c	S2-N7 (keyUnavailable, admitter)	C2	.halt .c2_keyUnavailable	-
 N7d	S2-N7 (keyUnavailable, owner)	C2	.halt .c2_keyUnavailable	-
 N8	S2-N8	C1	.reject .c1_logIdentity	-
-N9	S2-N9	C1	.reject .c1_keyResolutionDigest	-
+N9	S2-N9	C1b	.reject .c1b_keyResolutionDigest	-
 N10	S2-N10	accept	.accept (.obs false none)	-
 N11	S2-N11	C1	.reject .c1_rowsNotContiguous	-
 N12	S2-N12	C6	.halt .c6_noValidClosure	-
@@ -39,7 +39,7 @@ N22c	S2-N22 (s1_profile_token)	C1	.reject .c1_profileFields	-
 N23a	S2-N23 (extra field)	C1	.reject .c1_profileDecode	-
 N23b	S2-N23 (missing field)	C1	.reject .c1_profileDecode	-
 N23c	S2-N23 (non-canonical encoding)	C1	.reject .c1_profileDecode	-
-X1	addition	C1	.reject .c1_admitterSetDigest	-
+X1	addition	C1	.reject .c1b_admittersDigest	-
 X2	addition (commitment differs from frozen inst)	C4	.reject .c4_commitmentMismatch	-
 X3	addition (commitment after first admission)	C4	.reject .c4_commitmentAfterFirstAdmission	-
 X4	addition (two valid closures)	C6	.reject .c6_multipleClosures	-
@@ -47,3 +47,29 @@ X5	addition (empty closure)	C12	.reject .c12_evidenceOutsideE	-
 X6	addition (no closure)	C6	.halt .c6_noValidClosure	-
 X7	addition (ref to an admission after the closure)	C9	.reject .c9_refsNotExactRelevantSet	-
 X8	addition (adjudication not owner-signed)	C11	.halt .c11_noAdjudicationAfterClosure	-
+N24	S2-N24 (B1)	C13	.reject .c13_closedEvidenceDigest	-
+N25	S2-N25 (B1)	C13	.reject .c13_closedEvidenceDigest	-
+N26	S2-N26 (B2)	C1a	.reject .c1a_ownerNotIssuer	-
+N27	S2-N27 (B2)	C1a	.reject .c1a_subjectDerivation	-
+N28a	S2-N28a (B2,B4)	C1c	.reject .c1c_subjectDerivationDigest	-
+N28b	S2-N28b (B4)	C1c	.reject .c1c_leafEncodingProfileDigest	-
+N28c	S2-N28c (B4)	C1c	.reject .c1c_evidenceScopeDigest	-
+N28d	S2-N28d (B4)	C1c	.reject .c1c_admissionRuleDigest	-
+N28e	S2-N28e (B4)	C1c	.reject .c1c_coverageRuleDigest	-
+N29	S2-N29 (B3)	C1b	.reject .c1b_admittersDigest	-
+N30	S2-N30 (B3: key without authorization)	C8	.reject .c8_refNotRelevantAdmission	-
+N31	S2-N31 (B3: authorization without key)	C2	.halt .c2_keyUnavailable	-
+N32a	S2-N32a (B5)	C11	.reject .c11_adjudicationRefsMismatch	-
+N32b	S2-N32b (B5)	C11	.reject .c11_adjudicationRefsMismatch	-
+N32c	S2-N32c (B5)	C11	.reject .c11_adjudicationRefsMismatch	-
+N32d	S2-N32d (B5)	C11	.reject .c11_adjudicationRefsMismatch	-
+N33	S2-N33 (B6: withdrawn raw-token claim digest)	E2E	.accept (.obs false none)	-
+N34	S2-N34 (I-2: legacy binary preclosure digest)	C6	.halt .c6_noValidClosure	-
+N35	S2-N35 (I-3: legacy binary key-resolution digest)	C1b	.reject .c1b_keyResolutionDigest	-
+N36a	S2-N36a (G6-B1)	C3	.reject .c3_multipleProfileCommitments	-
+N36b	S2-N36b (G6-B1)	C3	.reject .c3_multipleProfileCommitments	-
+N36c	S2-N36c (G6-B1)	C3	.reject .c3_profileDigestMismatch	-
+X9	addition (owner listed in authorized_admitters)	C1b	.reject .c1_ownerInAdmitters	-
+X10	addition (issuer outside the token alphabet)	C1a	.reject .c1a_issuerNotToken	-
+D1	S2-D1	differential	equal	-
+D2	G6-B3 (leaf spec artifact digest)	differential	equal	-

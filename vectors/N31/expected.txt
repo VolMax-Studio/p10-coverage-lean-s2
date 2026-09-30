@@ -1,0 +1,7 @@
+id: N31
+prereg: S2-N31 (B3: authorization without key)
+condition: C2
+lean: .halt .c2_keyUnavailable
+tb7: -
+e2e: -
+note: 

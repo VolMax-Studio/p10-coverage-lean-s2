@@ -1,0 +1,7 @@
+id: D2
+prereg: G6-B3 (leaf spec artifact digest)
+condition: differential
+lean: equal
+tb7: -
+e2e: -
+note: expected bytes from scripts/s2a.py gen-differential

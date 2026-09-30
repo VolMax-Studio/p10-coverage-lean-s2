@@ -9,6 +9,6 @@ def instB : Bytes := filebytes% "vectors/X1/inst.bin"
 def inst : InstanceCommitment := (decodeInst instB).get (by decide +kernel)
 def tB : Bytes := filebytes% "vectors/X1/tB.bin"
 
-theorem outcome : run pB instB tB = some (.reject .c1_admitterSetDigest) := by decide +kernel
+theorem outcome : run pB instB tB = some (.reject .c1b_admittersDigest) := by decide +kernel
 
 end V_X1

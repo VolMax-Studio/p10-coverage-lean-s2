@@ -1,0 +1,7 @@
+id: N35
+prereg: S2-N35 (I-3: legacy binary key-resolution digest)
+condition: C1b
+lean: .reject .c1b_keyResolutionDigest
+tb7: -
+e2e: -
+note: 
