@@ -113,3 +113,11 @@ harness, but not replayed a second time.
 
 **I-18 — additions.** Vectors `P2x`, `P3b`, variants (`N4b`, `N6b/c`, `N7a–d`, `N13a/b`, `N22a–c`,
 `N23a–c`) and `X1`–`X8` exist beyond the §11 table; none weakens a preregistered vector.
+
+## v0.2.5 hardening — interpretations and deviations (prereg `e077c30e…`)
+
+- `PreclosureDigestV0`: kind tokens are the `Kind` constructor names (prereg leaves the kind string unspecified).
+- Issuer/owner `iss` must lie in the token alphabet (`c1a_issuerNotToken`); `owner ∉ authorized_admitters` is enforced as `c1_ownerInAdmitters`. Extra vectors X9, X10.
+- `profile/LeafEncodeV0_SPEC.md` is authored by the implementation (prereg gives no content). It binds the frozen profile §2.4 definition (exact registered Signed Statement bytes + format/media-type identifier → RFC 9162 leaf input) and explicitly states that the frozen profile and prereg define no byte-level mapping; S2a only binds the artifact digest, executable conformance is S2b and needs a normative decision.
+- Kernel cost: each vector needs ~6 GB, so `verify.sh` builds vector modules two at a time; end-to-end vectors are split over `V_<id>`, `V_<id>_dig`, `V_<id>_e2e` (`e2eCheck_of_parts`, `runE2E_of_inst`).
+- D1/D2 expected bytes come from independent Python (`scripts/s2a.py gen-differential`, frozen S1 `p10tool` JCS; raw-bytes digest for D2).
