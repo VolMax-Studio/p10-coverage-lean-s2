@@ -81,6 +81,11 @@ step "LeafEncodeV0 spec artifact digest (independent recomputation)"
 python3 scripts/s2a.py leafspec
 
 step "vectors P1-P3, P2x, N0-N36c, D1, D2 (+ additions): kernel-checked outcomes (decide +kernel)"
+# Each vector's kernel evaluation needs ~6 GB: build at most two at a time (plain `lake build`
+# would run one per core and be OOM-killed on 16 GB machines), then confirm the whole library.
+ls P10S2Tests/V_*.lean | sed 's#/#.#; s#\.lean$##' | sort \
+  | xargs -P2 -I{} sh -c 'lake build {} --wfail >/dev/null || { echo "vector build failed: {}" >&2; exit 255; }' \
+  || die "a vector module failed to build"
 lake build P10S2Tests --wfail
 
 step "end-to-end must-fail files (N0, N11, and the dropped-hypothesis controls)"
