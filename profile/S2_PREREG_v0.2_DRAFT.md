@@ -5,7 +5,8 @@ not the finished v0.2 text. The v0.1 candidate text (dated 2026-09-30) remains
 the baseline; it is not reproduced here. The owner must author the integrated
 v0.2 text; nothing below settles semantics.
 
-S1 dependency: see `../S1_DEPENDENCY.md`.
+S1 dependency: frozen, human-ratified tag `v0.1.0-s1-ratified` (see
+`../S1_DEPENDENCY.md`). S1 is ratified; this S2 draft is not.
 
 ## Mandatory v0.2 changes (from the two text-only gates) — OPEN
 

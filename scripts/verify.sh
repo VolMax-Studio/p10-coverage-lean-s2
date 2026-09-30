@@ -16,6 +16,10 @@ n=$(ls tests/planned/S2-N*.md | wc -l)
 [ "$n" -eq 15 ] || { echo "expected 15 planned vectors, found $n"; exit 1; }
 grep -q 'e4db3747eaeeb1a07227bb9029f9a9c3b566cdb1' S1_DEPENDENCY.md \
   || { echo "S1 pin missing"; exit 1; }
+for k in 'v0.1.0-s1-ratified' '7c3df437de454466b932a5d0dc889b3287c64e05' \
+  '06bf9129bf480c79ed5281ec2e944ac5613d1c340552ce5a415f5bf4c8965907'; do
+  grep -q "$k" S1_DEPENDENCY.md || { echo "S1 provenance missing: $k"; exit 1; }
+done
 grep -q 'NOT RATIFIED' profile/S2_PREREG_v0.2_DRAFT.md \
   || { echo "prereg draft must say NOT RATIFIED"; exit 1; }
 

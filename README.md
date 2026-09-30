@@ -34,11 +34,13 @@ fixture. See `P10S2/Coverage.lean`.
 
 ## S1 dependency
 
-See `S1_DEPENDENCY.md` (single location; currently a raw commit, to be
-switched to a frozen tag later).
+S2 depends on the frozen, human-ratified S1 release tag
+`v0.1.0-s1-ratified` (peeled commit `e4db3747…`); see `S1_DEPENDENCY.md`
+(single location). S1 is ratified; S2 is not.
 
 ## Verification
 
-`scripts/verify.sh` checks structure, forbidden constructs/scope, the Lean
+CI (`.github/workflows/verify.yml`) runs the same checks on the pinned
+conda-forge Lean 4.33.0 toolchain (no elan). `scripts/verify.sh` checks structure, forbidden constructs/scope, the Lean
 build and (vacuously, for now) the axiom audit. A pass means only:
 `S2 SCAFFOLD SELF-CHECK PASS — no coverage theorem is claimed.`
