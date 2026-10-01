@@ -8,7 +8,7 @@
 **S2 repository state at drafting:** `p10-coverage-lean-s2` main @ `b01cf1708894ca8b0e8ab527ac61befe96012538`; draft PR #3 @ `341c7df1…` not merged.
 **Normative source:** P10 Underdetermination Profile v0.1.1 (file SHA-256 `b92c0d68…6558`). This prereg does not amend the profile. Where this text and the profile disagree, the profile wins.
 
-**Marking convention.** Every normative statement added or changed by this amendment carries a tag of the form **[A: B1]** (gate finding) or **[A: I-2]** (integration finding). Untagged text is unchanged from v0.2.4.
+**Marking convention.** Every normative statement added or changed by v0.2.6 carries a tag of the form **[A6: K-1]** (finding or decision of this amendment). Tags of the form **[A: B1]** or **[A: I-2]** were introduced by v0.2.5 and are retained as written. Untagged text is unchanged from v0.2.5, except that v0.2.5 itself left text from v0.2.4 untagged.
 
 ---
 
@@ -140,7 +140,7 @@ Unchanged from v0.2. Under monotone compatibility, omitting admissions can only 
 
 Unchanged from v0.2. S2a `p10-coverage-lean-s2` (kernel-checked), S2b `p10-replay-verifier` (tested TCB), S3 `p10-scitt-s3` (external service, captured vectors). One-way dependencies. **This prereg authorizes S2a only.**
 
-**[A6: D-S3]** S3, when authorized, MUST use a Transparency Service whose verifiable data structure is `RFC9162_SHA256` (COSE Receipts VDS `1`), because profile v0.1.1 `FullPrefixReplay` reconstructs that root. A service using another VDS (for example the CCF ledger VDS) is outside this profile instance. Using one would require a different profile instance, not a change to S2a.
+**[A6: D-S3]** S3, when authorized, MUST use a Transparency Service whose verifiable data structure is `RFC9162_SHA256` (COSE Receipts VDS `1`), because profile v0.1.1 `FullPrefixReplay` reconstructs that root. A service using another VDS (for example the CCF ledger VDS) is outside this profile instance. Using another VDS would require a different or future P10 profile (or profile version) that normatively permits that VDS; changing only the S2a instance cannot make it conformant to profile v0.1.1 **[A6: G7-B2]**.
 
 ## 4. Trust boundaries
 
@@ -341,7 +341,7 @@ All structured P10 digests below are SHA-256 over JCS (RFC 8785) bytes (profile 
 | `EvidenceDigestV0(e)` **[B1]** | `{"evidence": evidenceTok e}` (S1 token, defined for every `Evidence` constructor) | `closed_evidence_set_digest`; exposed for S3 `evidence_digest` |
 | `AuthorizedAdmittersDigestV0(A)` **[B3]** | `{"authorized_admitters": [iss…]}`, strictly ascending | `authorized_admitter_set_digest` |
 | `KeyResolutionDigestV0(K)` **[I-3]** | `{"key_resolution": K}` in the `pB` canonical form | transcript `keyResolutionDigest` |
-| `PreclosureDigestV0(v)` **[I-2, A6: K-1]** | `{"preclosure_view": [[idx, kind, iss], …]}`; `idx` is the canonical decimal string (no sign, no leading zeros except `"0"`); `kind` is the token from the kind-token table below, never a Lean constructor name; `iss` is the entry's `iss` token as frozen in `pB`; entries in leaf order (not sorted); empty view is `{"preclosure_view":[]}`; `v` is the `ClosureTranscriptViewπ` subsequence before the closure leaf (definition of the view unchanged from implementation note I-5) | `checkpoint_preclosure_transcript_digest` |
+| `PreclosureDigestV0(v)` **[I-2, A6: K-1]** | `{"preclosure_view": [[idx, kind, iss], …]}`; `idx` is the canonical decimal string (no sign, no leading zeros except `"0"`); `kind` is the token from the kind-token table below, never a Lean constructor name; `iss` is the entry's canonical `iss` token (for an owner lifecycle entry, view membership requires `iss = inst.instance_owner_iss`, bound by `InstanceCommitment`; for a relevant admission, `iss` MUST be a member of `pB.authorized_admitters`) **[A6: G7-B1]**; entries in leaf order (not sorted); empty view is `{"preclosure_view":[]}`; `v` is the `ClosureTranscriptViewπ` subsequence before the closure leaf (definition of the view unchanged from implementation note I-5) | `checkpoint_preclosure_transcript_digest` |
 | `SubjectDeriveV0(i, r)` **[B2]** | `"p10s2sub:" ++ hex(SHA-256(JCS({"issuer_id": i, "request_id": hex(r), "v": "SubjectDeriveV0"})))` — a `tstr` | `instance_subject` |
 | `SubjectDerivationDigestV0` **[B2, B4]** | `{"rule": "SubjectDeriveV0", "verifier_manifest_digest": pB.verifier_manifest_digest}` | `subject_derivation_digest` |
 | `LeafEncodeSpecArtifactDigestV0(f)` **[G6-B3]** | **not JCS** — binary-artifact rule: `SHA-256("P10-LeafEncodeSpecArtifact-v0:" ++ "text-markdown-utf-8-v0:" ++ f)`, where both prefixes are fixed ASCII bytes and `f` is the exact raw file bytes | `pB.leaf_encoding_spec_digest` |
@@ -360,7 +360,7 @@ All structured P10 digests below are SHA-256 over JCS (RFC 8785) bytes (profile 
 | `closure` | `"closure"` |
 | `adjudication` | `"adjudication"` |
 
-All `iss` values that can appear in a view are the owner or an authorized admitter, all frozen in `pB`. C1 decoding already restricts them to the §6b token alphabet.
+All `iss` values that can appear in a view are the owner or an authorized admitter. The lifecycle-owner `iss` is frozen by `InstanceCommitment`; authorized-admitter `iss` values are frozen by `pB.authorized_admitters` **[A6: G7-B1]**. C1 decoding already restricts them to the §6b token alphabet.
 
 **Why descriptors carry the verifier-manifest digest [B4].** Profile §2.7 states that noncryptographic or merely immutable identifiers are insufficient. A rule name alone would bind nothing. The scope, admission, coverage, and subject-derivation rules are executed by the S2a checker, whose source and `.olean` files are covered by `VerifierManifestS2aV0`. Including that digest therefore binds the executed rule content. There is no cycle: the descriptors live in `pB` and in the commitment, and neither is manifest-covered (§6a partition).
 
@@ -512,7 +512,7 @@ S1 remains the semantic authority for `Underdetermined`. No `profileBindingOf iB
 | S2-K4 | `[["2","admission","admitter-a"]]` | `d8cb3193f9cd3a2d582a3f809da910e8dbe72c905bdfca29e5235d35c432bf6a` |
 | S2-K5 | `[["3","closure","owner"]]` | `3adcfe25eaea80607375e1575e657b5270332cc1c5911212f1a4cadfbd86f804` |
 | S2-K6 | `[["4","adjudication","owner"]]` | `6ff98382828faca48de0bc2ace1eb233043a48d660291cb9516cf4b85420c956` |
-| S2-K7 | `[["0","profile_commit","owner"],["7","instance_commit","owner"],["10","admission","admitter-a"],["123","admission","admitter-b"]]` — leaf order kept; `"10"` before `"123"`, so string-sorting is a trap | `679708f452ee69dde496ddc5b381383ae02f410930f2dc19ef5406710a44f87f` |
+| S2-K7 | `[["0","profile_commit","owner"],["7","instance_commit","owner"],["10","admission","admitter-a"],["123","admission","admitter-b"]]` — leaf order is preserved: `"7"` remains before `"10"`; lexicographic sorting would incorrectly place `"10"` before `"7"` **[A6: G7-F2]** | `679708f452ee69dde496ddc5b381383ae02f410930f2dc19ef5406710a44f87f` |
 | S2-K8 | Lean `PreclosureDigestV0` on the K1–K7 views equals an independent Python JCS computation | equal |
 | S2-D1 **[A: B6, B1]** | differential vector: Lean `ClaimDigestV0`, `EvidenceDigestV0` for P1 equal frozen S1 tooling output | equal |
 

@@ -6,7 +6,7 @@
 
 ## 1. Input
 
-- `statement_bytes`: the exact byte string of the COSE_Sign1 Signed Statement **as submitted for registration**. No re-encoding, no CBOR tag added or removed, no change to protected or unprotected headers. In particular, any form to which a Transparency Service has added a Receipt (unprotected header label `394`) is **not** the input. Length ≥ 1.
+- `statement_bytes`: the exact byte string of the COSE_Sign1 Signed Statement **as submitted for registration**. No re-encoding, no CBOR tag added or removed, no change to protected or unprotected headers. In particular, any receipt-bearing Transparent Statement (unprotected header label `394`), regardless of who attached the Receipt, is **not** the input. Length ≥ 1.
 - `format_id`: exactly the 32 ASCII bytes `application/scitt-statement+cose`. This is the only admissible value in v1. No case folding, parameters, aliases, or whitespace are allowed. Any other value means the statement is outside this profile instance.
 
 ## 2. Mapping
