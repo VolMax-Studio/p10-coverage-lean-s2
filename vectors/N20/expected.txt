@@ -1,0 +1,7 @@
+id: N20
+prereg: S2-N20
+condition: TB7
+lean: .accept (.obs false none)
+tb7: REJECT
+e2e: -
+note: Lean accepts (manifest identity is not a Lean fact); the TB7 harness REJECTs

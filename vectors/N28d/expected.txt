@@ -1,0 +1,7 @@
+id: N28d
+prereg: S2-N28d (B4)
+condition: C1c
+lean: .reject .c1c_admissionRuleDigest
+tb7: -
+e2e: -
+note: 

@@ -1,0 +1,7 @@
+id: X9
+prereg: addition (owner listed in authorized_admitters)
+condition: C1b
+lean: .reject .c1_ownerInAdmitters
+tb7: -
+e2e: -
+note: 

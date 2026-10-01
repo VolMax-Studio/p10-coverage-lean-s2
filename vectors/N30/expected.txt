@@ -1,0 +1,7 @@
+id: N30
+prereg: S2-N30 (B3: key without authorization)
+condition: C8
+lean: .reject .c8_refNotRelevantAdmission
+tb7: -
+e2e: -
+note: 

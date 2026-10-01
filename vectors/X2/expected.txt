@@ -1,0 +1,7 @@
+id: X2
+prereg: addition (commitment differs from frozen inst)
+condition: C4
+lean: .reject .c4_commitmentMismatch
+tb7: -
+e2e: -
+note: 

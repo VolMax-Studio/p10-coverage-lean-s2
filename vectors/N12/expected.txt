@@ -1,0 +1,7 @@
+id: N12
+prereg: S2-N12
+condition: C6
+lean: .halt .c6_noValidClosure
+tb7: -
+e2e: -
+note: 

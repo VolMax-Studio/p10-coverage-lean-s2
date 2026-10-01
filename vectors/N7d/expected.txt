@@ -1,0 +1,7 @@
+id: N7d
+prereg: S2-N7 (keyUnavailable, owner)
+condition: C2
+lean: .halt .c2_keyUnavailable
+tb7: -
+e2e: -
+note: 

@@ -1,0 +1,7 @@
+id: N7a
+prereg: S2-N7 (payload unavailable)
+condition: C2
+lean: .halt .c2_subjectPayloadUnavailable
+tb7: -
+e2e: -
+note: 

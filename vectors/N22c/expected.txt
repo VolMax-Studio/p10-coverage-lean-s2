@@ -1,0 +1,7 @@
+id: N22c
+prereg: S2-N22 (s1_profile_token)
+condition: C1
+lean: .reject .c1_profileFields
+tb7: -
+e2e: -
+note: 

@@ -1,0 +1,7 @@
+id: N28b
+prereg: S2-N28b (B4)
+condition: C1c
+lean: .reject .c1c_leafEncodingProfileDigest
+tb7: -
+e2e: -
+note: 

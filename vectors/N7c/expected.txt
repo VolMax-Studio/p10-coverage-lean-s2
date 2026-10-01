@@ -1,0 +1,7 @@
+id: N7c
+prereg: S2-N7 (keyUnavailable, admitter)
+condition: C2
+lean: .halt .c2_keyUnavailable
+tb7: -
+e2e: -
+note: 

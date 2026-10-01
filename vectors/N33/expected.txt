@@ -1,0 +1,7 @@
+id: N33
+prereg: S2-N33 (B6: withdrawn raw-token claim digest)
+condition: E2E
+lean: .accept (.obs false none)
+tb7: -
+e2e: none
+note: coverage accepts; the composed verdict is none because claim_digest ≠ ClaimDigestV0

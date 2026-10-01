@@ -1,0 +1,7 @@
+id: D2
+prereg: G6-B3 (leaf spec artifact digest)
+condition: differential
+lean: equal
+tb7: -
+e2e: -
+note: kernel rfl of the gated formula plus two small kernel differentials against hashlib (empty_digest.bin, small_digest.bin from scripts/gen_d2_small.py); the digest of the real spec file is checked by scripts/s2a.py leafspec (spec_digest.bin), not by the kernel

@@ -1,0 +1,7 @@
+id: N22b
+prereg: S2-N22 (normative_profile_digest)
+condition: C1
+lean: .reject .c1_profileFields
+tb7: -
+e2e: -
+note: 

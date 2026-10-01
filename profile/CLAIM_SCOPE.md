@@ -1,19 +1,26 @@
-# Claim scope (DRAFT — not ratified)
+# Claim scope (S2a)
 
-If S2 is ever proven, it will establish, relative to a frozen instance
-commitment and a checkpoint-bound authenticated transcript through `S_R`, that
-the evidence bundle supplied to S1 is exactly the bundle constructed from every
-valid in-scope `RelevantAdmission` visible in the committed prefix.
+What a passing acceptance command establishes is stated in prereg v0.2.6 §1 and §16 (incorporating
+v0.2.5 and v0.2.4), reproduced here in substance:
 
-It will **not** establish: that all evidence in the world was registered;
-that the selected log contains all relevant evidence; that no sibling
-instance exists; that an issuer was ignorant of unregistered/out-of-scope
-evidence; global non-equivocation of the Transparency Service; or anything
-about registrations after `S_R`.
+Relative to the frozen `InstanceCommitment`, the concrete profile artifact bound by
+`profile_digest`, the committed log identity, a presented checkpoint `S_R`, and a transcript
+`T` with `TranscriptFaithful(T, V)`, the evidence and claim certified by S1 are exactly the
+commitment's claim and the bundle of every valid, registered, in-scope admission for the
+instance before its unique valid closure, with no such admission between the closure and
+`size(S_R)`.
 
-**Consistency vs adequacy.** Coverage is consistency/completeness relative to a
-frozen authorization policy, relevance predicate, evidence scope, admission
-rules and key-resolution policy. It does not prove those policies adequately
-describe all real-world evidence that could change the verdict.
+It does **not** establish: that all evidence in the world was registered; that the log contains
+all relevant evidence; absence of sibling instances or other-log instances; ignorance of the
+issuer; transparency-service non-equivocation; `S_R` freshness; anything after `S_R`; or that the
+frozen policy/scope/relevance predicate is adequate (coverage is consistency/completeness
+relative to it).
 
-Nothing in this repository currently proves any of the above.
+**Boundary with S2b (§16, B4).** S2a does not recompute `LogIdentityV0` from the transparency
+service identity, checkpoint key and VDS algorithm, and does not execute `LeafEncodeV0`. It checks
+only that the committed values match the transcript and the committed specification digest
+(`pB.leaf_encoding_spec_digest`, `profile/LeafEncodeV0_SPEC.md`). Execution conformance of
+`LeafEncodeV0` and recomputation of `LogIdentityV0` are S2b obligations, and S2b is not authorized.
+
+A green acceptance command is an implementation check. It is neither an adversarial-gate verdict
+nor human ratification.

@@ -1,6 +1,13 @@
 {"version": "1.2.0",
  "packagesDir": ".lake/packages",
- "packages": [],
+ "packages":
+ [{"type": "path",
+   "scope": "",
+   "name": "«p10-underdetermination-lean-s1»",
+   "manifestFile": "lake-manifest.json",
+   "inherited": false,
+   "dir": "vendor/p10-underdetermination-lean-s1",
+   "configFile": "lakefile.toml"}],
  "name": "«p10-coverage-lean-s2»",
  "lakeDir": ".lake",
  "fixedToolchain": false}

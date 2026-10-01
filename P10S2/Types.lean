@@ -1,41 +1,32 @@
+import P10.Bound
+
 /-!
-# P10S2.Types
+# P10S2.Types — core data of the S2a coverage kernel
 
-Identifiers and the outcome type for S2a. SCAFFOLD ONLY: no coverage logic.
+Everything in this file is plain data. No cryptographic fact is asserted here:
+`SigObservation` is an uninterpreted observation supplied by S2b (prereg TB2);
+Lean alone decides authorization, relevance and lifecycle validity.
 
-Nothing here implies cryptographic validity; all such facts are produced by
-S2b (`p10-replay-verifier`) and arrive as explicit typed inputs.
+Bytes are `List Nat` (as in frozen S1) so that the kernel can evaluate everything.
 -/
 
 namespace P10S2
 
-/-- Raw bytes. -/
-abbrev Bytes := List UInt8
+abbrev Bytes := List Nat
 
-/-- Identity of a transparency log (committed in the instance commitment). -/
-structure LogId where
-  bytes : Bytes
-  deriving DecidableEq, Repr
-
-/-- A digest (e.g. tree root, policy digest). Length/algorithm not fixed here. -/
 structure Digest where
   bytes : Bytes
   deriving DecidableEq, Repr
 
-/-- Authenticated issuer identifier (`iss`). -/
 structure Iss where
   bytes : Bytes
   deriving DecidableEq, Repr
 
-/-- Authenticated subject identifier (`sub`). -/
 structure Subject where
   bytes : Bytes
   deriving DecidableEq, Repr
 
-/-- Leaf / registration index in the log. -/
-abbrev Idx := Nat
-
-/-- Statement kinds (prereg v0.1 §6). -/
+/-- Statement kinds (prereg §6). -/
 inductive Kind
   | profileCommit
   | instanceCommit
@@ -44,46 +35,153 @@ inductive Kind
   | adjudication
   deriving DecidableEq, Repr
 
-/-- The frozen instance commitment: identities Lean must match against.
-Field semantics are NOT yet specified (prereg v0.2 is a draft). -/
+/-- Pure cryptographic observation reported by S2b (prereg TB2). Never a verdict. -/
+inductive SigObservation
+  | verified
+  | badSignature
+  | keyUnavailable
+  deriving DecidableEq, Repr
+
+/-- `InstanceCommitment` with the normative fields of profile v0.1.1 §2.3. -/
 structure InstanceCommitment where
-  logId              : LogId
-  subject            : Subject
-  profileDigest      : Digest
-  admissionRulesDigest : Digest
-  scopeDigest        : Digest
-  authPolicyDigest   : Digest
+  requestId                   : Bytes
+  issuerId                    : Iss
+  instanceSubject             : Subject
+  instanceOwnerIss            : Iss
+  logIdentityDigest           : Digest
+  leafEncodingProfileDigest   : Digest
+  claimDigest                 : Digest
+  profileDigest               : Digest
+  evidenceScopeDigest         : Digest
+  admissionRuleDigest         : Digest
+  coverageRuleDigest          : Digest
+  authorizedAdmitterSetDigest : Digest
+  subjectDerivationDigest     : Digest
+  deriving DecidableEq, Repr
+
+/-- `EvidenceClosure` payload (profile §2.6). -/
+structure ClosurePayload where
+  instanceSubject                      : Subject
+  terminal                             : Bool
+  orderedAdmissionRefs                 : List Nat
+  closedEvidenceSetDigest              : Digest
+  checkpointPreclosureTranscriptDigest : Digest
+  deriving DecidableEq, Repr
+
+/-- Decoded statement payloads (typed by S2b; Lean checks them against `Kind`). -/
+inductive Payload (Item : Type)
+  | profileCommit  (profileDigest : Digest)
+  | instanceCommit (ic : InstanceCommitment)
+  | admission      (item : Item)
+  | closure        (cl : ClosurePayload)
+  | adjudication   (profileRef commitRef closureRef : Nat)
+  deriving DecidableEq, Repr
+
+def Payload.kind {Item : Type} : Payload Item → Kind
+  | .profileCommit _ => .profileCommit
+  | .instanceCommit _ => .instanceCommit
+  | .admission _ => .admission
+  | .closure _ => .closure
+  | .adjudication _ _ _ => .adjudication
+
+/-- Everything the verifier can observe about one leaf of the log (prereg TB2). -/
+structure LeafFacts (Item : Type) where
+  sub     : Subject
+  iss     : Iss
+  kind    : Kind
+  sig     : SigObservation
+  payload : Option (Payload Item)
+  deriving DecidableEq, Repr
+
+/-- Abstract log view through `S_R`: `none` = not obtainable by the verifier. -/
+structure LogView (Item : Type) where
+  size : Nat
+  leaf : Nat → Option (LeafFacts Item)
+
+inductive RowStatus
+  | available (sub : Subject)
+  | unavailable
+  deriving DecidableEq, Repr
+
+structure Row where
+  idx    : Nat
+  status : RowStatus
+  deriving DecidableEq, Repr
+
+structure DetailedEntry (Item : Type) where
+  idx     : Nat
+  iss     : Iss
+  kind    : Kind
+  sig     : SigObservation
+  payload : Option (Payload Item)
+  deriving DecidableEq, Repr
+
+structure Checkpoint where
+  size       : Nat
+  rootDigest : Digest
+  deriving DecidableEq, Repr
+
+structure Transcript (Item : Type) where
+  logIdentityDigest   : Digest
   keyResolutionDigest : Digest
+  checkpoint          : Checkpoint
+  rows                : List Row
+  detailed            : List (DetailedEntry Item)
   deriving DecidableEq, Repr
 
-/-- Reasons for REJECT. Names reserve the vocabulary only; no semantics yet. -/
+/-- REJECT reasons, named by the prereg condition that produces them. -/
 inductive RejectReason
-  | commitmentConflict
-  | profileMismatch
-  | checkpointLogMismatch
-  | keyMapMismatch
-  | closureConflict
-  | closureRefsInvalid
-  | omittedRelevantAdmission
-  | relevantAdmissionAfterClosure
-  | citedEntryNotRelevant
-  | bundleObligationFailed
-  | s1EvidenceBindingMismatch
+  | c1_rowsNotContiguous
+  | c1_detailedMismatch
+  | c1_logIdentity
+  | c1_profileDigest
+  | c1_profileDecode
+  | c1_profileFields
+  | c1a_ownerNotIssuer
+  | c1a_issuerNotToken
+  | c1a_subjectDerivation
+  | c1_ownerInAdmitters
+  | c1b_admittersDigest
+  | c1b_keyResolutionDigest
+  | c1c_subjectDerivationDigest
+  | c1c_leafEncodingProfileDigest
+  | c1c_evidenceScopeDigest
+  | c1c_admissionRuleDigest
+  | c1c_coverageRuleDigest
+  | c3_multipleProfileCommitments
+  | c3_profileDigestMismatch
+  | c3_profileAfterFirstAdmission
+  | c4_multipleCommitments
+  | c4_commitmentMismatch
+  | c4_commitmentAfterFirstAdmission
+  | c5_citesNonOwnerLifecycle
+  | c6_multipleClosures
+  | c7_refsNotStrictlyAscending
+  | c8_refNotRelevantAdmission
+  | c9_refsNotExactRelevantSet
+  | c10_relevantAdmissionAfterClosure
+  | c11_adjudicationRefsMismatch
+  | c12_evidenceOutsideE
+  | c13_closedEvidenceDigest
   deriving DecidableEq, Repr
 
-/-- Reasons for HALT (unavailable verification input; never negative evidence). -/
+/-- HALT reasons: unavailable verification input, never negative evidence. -/
 inductive HaltReason
-  | noCommitment
-  | noClosure
-  | payloadUnavailable
-  | prefixIncomplete
-  | checkpointMaterialUnavailable
+  | c2_rowUnavailable
+  | c2_subjectPayloadUnavailable
+  | c2_keyUnavailable
+  | c3_noProfileCommitment
+  | c4_noInstanceCommitment
+  | c6_noValidClosure
+  | c11_noAdjudicationAfterClosure
+  | tb5_checkpointMaterialUnavailable
   deriving DecidableEq, Repr
 
-/-- Coverage outcome. `halt` carries no evidence and no verdict, by type. -/
+/-- Coverage outcome. `halt` carries no evidence, by type (prereg §10). -/
 inductive CoverageOutcome (Evidence : Type)
   | accept (e : Evidence)
-  | reject (reason : RejectReason)
-  | halt   (reason : HaltReason)
+  | reject (r : RejectReason)
+  | halt   (r : HaltReason)
+  deriving DecidableEq, Repr
 
 end P10S2

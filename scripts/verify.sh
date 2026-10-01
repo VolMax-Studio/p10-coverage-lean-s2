@@ -1,51 +1,114 @@
 #!/usr/bin/env bash
-# Scaffold self-check. Checks only things that exist; never prints a
-# coverage/verification PASS.
+# S2a acceptance command (prereg §15). Fail-closed: any failing step aborts; no network, no
+# `lake update`, no `elan`. A pass is NOT a gate verdict and NOT ratification.
+#
+#   canonical run (pins obtained out of band):
+#     P10_EXPECT_VERIFIER_MANIFEST_SHA256=<sha256> P10_EXPECT_VECTOR_MANIFEST_SHA256=<sha256> ./scripts/verify.sh
+#   self-consistency run (reads profile/S2A_PINS.txt from the same tree; proves consistency only):
+#     P10_ALLOW_INTREE_PIN=1 ./scripts/verify.sh
+#
+# Requires on PATH: the pinned lean/lake/leanchecker (scripts/install_toolchain.sh), python3 with
+# requirements.lock, sha256sum.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-need=(README.md LICENSE lean-toolchain lakefile.toml lake-manifest.json
-  S1_DEPENDENCY.md profile/S2_PREREG_v0.2_DRAFT.md profile/TRUST_BOUNDARIES.md
-  profile/CLAIM_SCOPE.md profile/IMPLEMENTATION_BINDING.md P10S2.lean
-  tests/README.md tests/PositiveControl.lean scripts/check_no_forbidden_scope.py)
-for m in Types Checkpoint Transcript Authorization Relevance Bundle Closure \
-         CoverageSpec Coverage Composition Fixtures AxiomAudit; do
-  need+=("P10S2/$m.lean"); done
-for f in "${need[@]}"; do [ -f "$f" ] || { echo "MISSING: $f"; exit 1; }; done
-n=$(ls tests/planned/S2-N*.md | wc -l)
-[ "$n" -eq 15 ] || { echo "expected 15 planned vectors, found $n"; exit 1; }
-grep -q 'e4db3747eaeeb1a07227bb9029f9a9c3b566cdb1' S1_DEPENDENCY.md \
-  || { echo "S1 pin missing"; exit 1; }
-for k in 'v0.1.0-s1-ratified' '7c3df437de454466b932a5d0dc889b3287c64e05' \
-  '06bf9129bf480c79ed5281ec2e944ac5613d1c340552ce5a415f5bf4c8965907'; do
-  grep -q "$k" S1_DEPENDENCY.md || { echo "S1 provenance missing: $k"; exit 1; }
+step() { printf '\n==> %s\n' "$*"; }
+die()  { printf 'VERIFY FAIL: %s\n' "$*" >&2; exit 1; }
+for t in lean lake leanchecker python3 sha256sum; do
+  command -v "$t" >/dev/null 2>&1 || die "required tool missing: $t"
 done
-grep -q 'NOT RATIFIED' profile/S2_PREREG_v0.2_DRAFT.md \
-  || { echo "prereg draft must say NOT RATIFIED"; exit 1; }
 
+step "pins (root of trust for both manifests)"
+if [[ -n "${P10_EXPECT_VERIFIER_MANIFEST_SHA256:-}" && -n "${P10_EXPECT_VECTOR_MANIFEST_SHA256:-}" ]]; then
+  pin_v="$P10_EXPECT_VERIFIER_MANIFEST_SHA256"; pin_t="$P10_EXPECT_VECTOR_MANIFEST_SHA256"
+  echo "  using externally supplied pins"
+elif [[ "${P10_ALLOW_INTREE_PIN:-0}" == "1" ]]; then
+  pin_v="$(grep '^verifier_manifest_sha256=' profile/S2A_PINS.txt | cut -d= -f2)"
+  pin_t="$(grep '^vector_manifest_sha256=' profile/S2A_PINS.txt | cut -d= -f2)"
+  echo "  WARNING: in-tree pins: this run proves self-consistency only; it is NOT an external trust anchor"
+else
+  die "external pins required (P10_EXPECT_VERIFIER_MANIFEST_SHA256 and P10_EXPECT_VECTOR_MANIFEST_SHA256), or P10_ALLOW_INTREE_PIN=1"
+fi
+[[ "$pin_v" =~ ^[0-9a-f]{64}$ && "$pin_t" =~ ^[0-9a-f]{64}$ ]] || die "malformed manifest pin"
+
+step "python environment (requirements.lock)"
+python3 scripts/check_env.py requirements.lock || die "python environment differs from requirements.lock"
+
+step "toolchain identity"
+lean --version
+[[ "$(cat lean-toolchain)" == "leanprover/lean4:v4.33.0" ]] || die "lean-toolchain differs from the pinned identifier"
+lean --version | grep -q "version 4.33.0" || die "lean is not 4.33.0"
+
+step "accepted preregistration artifact (exact bytes)"
+echo "5f5a7eaf538f3051adca384f0aaf231f93c218682401fc75be1a3566c8283c82  profile/S2_PREREG_v0.2.4_ACCEPTED_S2a.md" \
+  | sha256sum --check --quiet || die "profile/S2_PREREG_v0.2.4_ACCEPTED_S2a.md differs from the accepted artifact"
+
+step "accepted preregistration v0.2.5 (exact bytes)"
+echo "e077c30edb33d4799079185ccc4bb3add7e32a5ee4318a358c77a139039c437f  profile/S2_PREREG_v0.2.5.md" \
+  | sha256sum --check --quiet || die "profile/S2_PREREG_v0.2.5.md differs from the accepted artifact"
+
+step "accepted preregistration v0.2.6 (exact bytes)"
+echo "d6fbeb13bf229d0e10c17031a887ef7944ae8e6acc68b6e898a007d5a851c9e0  profile/S2_PREREG_v0.2.6.md" \
+  | sha256sum --check --quiet || die "profile/S2_PREREG_v0.2.6.md differs from the gated artifact"
+
+step "frozen S1 dependency (vendored tag v0.1.0-s1-ratified)"
+python3 scripts/s2a.py s1-identity
+
+step "Lean source policy"
 python3 scripts/check_no_forbidden_scope.py
 
-if ! command -v lake >/dev/null 2>&1; then
-  echo "lake not found: Lean build NOT performed; scaffold self-check incomplete" >&2
-  exit 2
-fi
-[ "$(cat lean-toolchain)" = "leanprover/lean4:v4.33.0" ] || { echo "toolchain drift"; exit 1; }
-lake build
+step "clean build of the checker library (warnings are errors), twice (idempotence)"
+rm -rf .lake/build vendor/p10-underdetermination-lean-s1/.lake/build
+lake build P10S2 --wfail
+lake build P10S2 --wfail >/dev/null
 
-# Axiom audit: any theorem must have a `#print axioms` entry and only
-# standard axioms.
-thms=$(python3 scripts/check_no_forbidden_scope.py --list-theorems)
-if [ -z "$thms" ]; then
-  echo "axiom audit: no theorems present (vacuous)"
-else
-  for t in $thms; do
-    grep -q "#print axioms .*${t}" P10S2/AxiomAudit.lean \
-      || { echo "theorem $t lacks axiom-audit entry"; exit 1; }
-  done
-  out=$(lake env lean P10S2/AxiomAudit.lean)
-  echo "$out"
-  echo "$out" | grep -oE '\[[^]]*\]' | tr -d '[]' | tr ',' '\n' | sed 's/ //g' \
-    | grep -vxE 'propext|Classical.choice|Quot.sound|' && { echo "non-standard axiom"; exit 1; } || true
-fi
+step "kernel replay: leanchecker over every module of the checker library"
+lake env leanchecker P10S2 || die "leanchecker replay failed"
 
-echo "S2 SCAFFOLD SELF-CHECK PASS — no coverage theorem is claimed."
+step "axiom audit (every non-private theorem; permitted axioms only)"
+python3 scripts/s2a.py check-audit
+
+step "VerifierManifestS2aV0: recompute for the running build and compare"
+python3 scripts/s2a.py check-verifier
+[[ "$(sha256sum manifest/VerifierManifestS2aV0.json | cut -d' ' -f1)" == "$pin_v" ]] \
+  || die "VerifierManifestS2aV0 digest differs from the pin"
+
+step "manifest partition rule"
+python3 scripts/s2a.py partition
+
+step "VectorManifestS2aV0: exact file set and digests"
+python3 scripts/s2a.py check-vector
+[[ "$(sha256sum manifest/VectorManifestS2aV0.json | cut -d' ' -f1)" == "$pin_t" ]] \
+  || die "VectorManifestS2aV0 digest differs from the pin"
+
+step "LeafEncodeV0 spec artifact digest (independent recomputation)"
+python3 scripts/s2a.py leafspec
+
+step "vectors P1-P3, P2x, N0-N36c, D1, D2, K1-K8 (+ additions): kernel-checked outcomes (decide +kernel)"
+# Each vector's kernel evaluation needs ~6 GB. The default is serial (P10_VECTOR_JOBS=1) so that
+# the canonical acceptance command fits a standard private GitHub-hosted runner (2 vCPU / 8 GB);
+# higher parallelism is an explicit operator optimization on machines with enough memory
+# (e.g. P10_VECTOR_JOBS=2 on 16 GB). It only changes the schedule of kernel checks, never a result.
+VECTOR_JOBS="${P10_VECTOR_JOBS:-1}"
+export VECTOR_JOBS
+echo "vector modules built with $VECTOR_JOBS job(s) at a time"
+ls P10S2Tests/V_*.lean | sed 's#/#.#; s#\.lean$##' | sort \
+  | xargs -P"$VECTOR_JOBS" -I{} sh -c 'echo "[vector] start {} $(date -u +%H:%M:%S)"; lake build {} --wfail >/dev/null || { echo "vector build failed: {}" >&2; exit 255; }; echo "[vector] done  {} $(date -u +%H:%M:%S)"' \
+  || die "a vector module failed to build"
+lake build P10S2Tests --wfail
+
+step "end-to-end must-fail files (N0, N11, and the dropped-hypothesis controls)"
+python3 scripts/s2a.py mustfail
+
+step "TB7 harness (verifier identity; N20 REJECT, N21 HALT)"
+python3 scripts/s2a.py tb7-vectors
+
+step "result matrix"
+python3 scripts/s2a.py matrix
+
+step "artifact digests"
+sha256sum manifest/VerifierManifestS2aV0.json manifest/VectorManifestS2aV0.json \
+  vendor/p10-underdetermination-lean-s1/manifest/VerifierManifestS1.json
+
+echo
+echo "S2a ACCEPTANCE COMMAND PASS — implementation checks only; not a gate verdict, not ratification."

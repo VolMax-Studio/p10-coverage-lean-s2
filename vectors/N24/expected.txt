@@ -1,0 +1,7 @@
+id: N24
+prereg: S2-N24 (B1)
+condition: C13
+lean: .reject .c13_closedEvidenceDigest
+tb7: -
+e2e: -
+note: 

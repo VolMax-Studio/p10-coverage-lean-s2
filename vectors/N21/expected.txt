@@ -1,0 +1,7 @@
+id: N21
+prereg: S2-N21
+condition: TB7
+lean: .accept (.obs false none)
+tb7: HALT
+e2e: -
+note: Lean accepts; the TB7 harness HALTs (manifest ref does not resolve)

@@ -1,0 +1,7 @@
+id: N11
+prereg: S2-N11
+condition: C1
+lean: .reject .c1_rowsNotContiguous
+tb7: -
+e2e: -
+note: rows stop at the closure leaf; checkpoint.size = 6; E2E must-fail

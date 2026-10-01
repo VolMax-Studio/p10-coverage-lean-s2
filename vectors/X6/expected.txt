@@ -1,0 +1,7 @@
+id: X6
+prereg: addition (no closure)
+condition: C6
+lean: .halt .c6_noValidClosure
+tb7: -
+e2e: -
+note: 

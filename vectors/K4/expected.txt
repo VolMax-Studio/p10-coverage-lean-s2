@@ -1,0 +1,7 @@
+id: K4
+prereg: S2-K4 (K-1)
+condition: differential
+lean: equal
+tb7: -
+e2e: -
+note: expected bytes from scripts/s2a.py gen-differential (independent Python JCS, frozen S1 p10tool)

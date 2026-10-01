@@ -1,0 +1,7 @@
+id: P1
+prereg: S2-P1
+condition: accept
+lean: .accept (.obs false (some false))
+tb7: PASS
+e2e: none
+note: bundle [A1,A2] = eD; S1 finds Determinate, so no S1 certificate; e2e = none

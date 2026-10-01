@@ -1,0 +1,7 @@
+id: P2
+prereg: S2-P2
+condition: accept
+lean: .accept (.obs false none)
+tb7: PASS
+e2e: some (.obs false none, .secondBit)
+note: composes with S1 under §9

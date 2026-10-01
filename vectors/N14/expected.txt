@@ -1,0 +1,7 @@
+id: N14
+prereg: S2-N14
+condition: C5
+lean: .reject .c5_citesNonOwnerLifecycle
+tb7: -
+e2e: -
+note: 

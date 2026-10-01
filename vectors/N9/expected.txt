@@ -1,0 +1,7 @@
+id: N9
+prereg: S2-N9
+condition: C1b
+lean: .reject .c1b_keyResolutionDigest
+tb7: -
+e2e: -
+note: same transcript, different key mapping; commitment re-digested

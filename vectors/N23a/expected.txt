@@ -1,0 +1,7 @@
+id: N23a
+prereg: S2-N23 (extra field)
+condition: C1
+lean: .reject .c1_profileDecode
+tb7: -
+e2e: -
+note: 

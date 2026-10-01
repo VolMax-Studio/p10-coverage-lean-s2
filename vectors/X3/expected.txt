@@ -1,0 +1,7 @@
+id: X3
+prereg: addition (commitment after first admission)
+condition: C4
+lean: .reject .c4_commitmentAfterFirstAdmission
+tb7: -
+e2e: -
+note: 

@@ -1,0 +1,7 @@
+id: N34
+prereg: S2-N34 (I-2: legacy binary preclosure digest)
+condition: C6
+lean: .halt .c6_noValidClosure
+tb7: -
+e2e: -
+note: 

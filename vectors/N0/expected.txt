@@ -1,0 +1,7 @@
+id: N0
+prereg: S2-N0
+condition: C9
+lean: .reject .c9_refsNotExactRelevantSet
+tb7: -
+e2e: -
+note: strategic omission; E2E must-fail in P10S2TestsMustFail

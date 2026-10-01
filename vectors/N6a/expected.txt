@@ -1,0 +1,7 @@
+id: N6a
+prereg: S2-N6a
+condition: C4
+lean: .halt .c4_noInstanceCommitment
+tb7: -
+e2e: -
+note: 

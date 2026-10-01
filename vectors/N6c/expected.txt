@@ -1,0 +1,7 @@
+id: N6c
+prereg: S2-N6b (conflicting commitment)
+condition: C4
+lean: .reject .c4_multipleCommitments
+tb7: -
+e2e: -
+note: 

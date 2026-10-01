@@ -1,0 +1,7 @@
+id: P3b
+prereg: S2-P3 (closure [A1] only)
+condition: C9
+lean: .reject .c9_refsNotExactRelevantSet
+tb7: -
+e2e: -
+note: 
