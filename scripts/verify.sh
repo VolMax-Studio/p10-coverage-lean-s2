@@ -81,10 +81,15 @@ step "LeafEncodeV0 spec artifact digest (independent recomputation)"
 python3 scripts/s2a.py leafspec
 
 step "vectors P1-P3, P2x, N0-N36c, D1, D2 (+ additions): kernel-checked outcomes (decide +kernel)"
-# Each vector's kernel evaluation needs ~6 GB: build at most two at a time (plain `lake build`
-# would run one per core and be OOM-killed on 16 GB machines), then confirm the whole library.
+# Each vector's kernel evaluation needs ~6 GB. The default is serial (P10_VECTOR_JOBS=1) so that
+# the canonical acceptance command fits a standard private GitHub-hosted runner (2 vCPU / 8 GB);
+# higher parallelism is an explicit operator optimization on machines with enough memory
+# (e.g. P10_VECTOR_JOBS=2 on 16 GB). It only changes the schedule of kernel checks, never a result.
+VECTOR_JOBS="${P10_VECTOR_JOBS:-1}"
+export VECTOR_JOBS
+echo "vector modules built with $VECTOR_JOBS job(s) at a time"
 ls P10S2Tests/V_*.lean | sed 's#/#.#; s#\.lean$##' | sort \
-  | xargs -P2 -I{} sh -c 'lake build {} --wfail >/dev/null || { echo "vector build failed: {}" >&2; exit 255; }' \
+  | xargs -P"$VECTOR_JOBS" -I{} sh -c 'echo "[vector] start {} $(date -u +%H:%M:%S)"; lake build {} --wfail >/dev/null || { echo "vector build failed: {}" >&2; exit 255; }; echo "[vector] done  {} $(date -u +%H:%M:%S)"' \
   || die "a vector module failed to build"
 lake build P10S2Tests --wfail
 
