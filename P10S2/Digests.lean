@@ -62,10 +62,11 @@ def authorizedAdmittersDigestV0 (a : List Bytes) : Digest :=
 def keyResolutionDigestV0 (kr : KeyResolution) : Digest :=
   ⟨sha256 (bytes% "{\"key_resolution\":" ++ keyResolutionC.enc kr ++ [125])⟩
 
-/-- String form of a statement kind inside `PreclosureDigestV0`. -/
+/-- Normative JCS token of a statement kind inside `PreclosureDigestV0` (prereg v0.2.6 kind-token
+table, K-1): the hashed string is this token, never the constructor name. -/
 def kindTok : Kind → Bytes
-  | .profileCommit => bytes% "profileCommit"
-  | .instanceCommit => bytes% "instanceCommit"
+  | .profileCommit => bytes% "profile_commit"
+  | .instanceCommit => bytes% "instance_commit"
   | .admission => bytes% "admission"
   | .closure => bytes% "closure"
   | .adjudication => bytes% "adjudication"

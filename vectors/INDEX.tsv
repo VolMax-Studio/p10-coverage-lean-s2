@@ -73,3 +73,11 @@ X9	addition (owner listed in authorized_admitters)	C1b	.reject .c1_ownerInAdmitt
 X10	addition (issuer outside the token alphabet)	C1a	.reject .c1a_issuerNotToken	-
 D1	S2-D1	differential	equal	-
 D2	G6-B3 (leaf spec artifact digest)	differential	equal	-
+K1	S2-K1 (K-1)	differential	equal	-
+K2	S2-K2 (K-1)	differential	equal	-
+K3	S2-K3 (K-1)	differential	equal	-
+K4	S2-K4 (K-1)	differential	equal	-
+K5	S2-K5 (K-1)	differential	equal	-
+K6	S2-K6 (K-1)	differential	equal	-
+K7	S2-K7 (K-1)	differential	equal	-
+K8	S2-K8 (K-1)	differential	equal	-

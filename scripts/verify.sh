@@ -47,6 +47,10 @@ step "accepted preregistration v0.2.5 (exact bytes)"
 echo "e077c30edb33d4799079185ccc4bb3add7e32a5ee4318a358c77a139039c437f  profile/S2_PREREG_v0.2.5.md" \
   | sha256sum --check --quiet || die "profile/S2_PREREG_v0.2.5.md differs from the accepted artifact"
 
+step "accepted preregistration v0.2.6 (exact bytes)"
+echo "d6fbeb13bf229d0e10c17031a887ef7944ae8e6acc68b6e898a007d5a851c9e0  profile/S2_PREREG_v0.2.6.md" \
+  | sha256sum --check --quiet || die "profile/S2_PREREG_v0.2.6.md differs from the gated artifact"
+
 step "frozen S1 dependency (vendored tag v0.1.0-s1-ratified)"
 python3 scripts/s2a.py s1-identity
 
@@ -80,7 +84,7 @@ python3 scripts/s2a.py check-vector
 step "LeafEncodeV0 spec artifact digest (independent recomputation)"
 python3 scripts/s2a.py leafspec
 
-step "vectors P1-P3, P2x, N0-N36c, D1, D2 (+ additions): kernel-checked outcomes (decide +kernel)"
+step "vectors P1-P3, P2x, N0-N36c, D1, D2, K1-K8 (+ additions): kernel-checked outcomes (decide +kernel)"
 # Each vector's kernel evaluation needs ~6 GB. The default is serial (P10_VECTOR_JOBS=1) so that
 # the canonical acceptance command fits a standard private GitHub-hosted runner (2 vCPU / 8 GB);
 # higher parallelism is an explicit operator optimization on machines with enough memory

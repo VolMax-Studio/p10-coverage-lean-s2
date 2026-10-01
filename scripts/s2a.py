@@ -402,15 +402,37 @@ def leaf_spec_digest() -> str:
     return sha(b"P10-LeafEncodeSpecArtifact-v0:" + b"text-markdown-utf-8-v0:" + (ROOT / LEAF_SPEC).read_bytes())
 
 
+PREREG_K = {  # S2-K1..K7 expected SHA-256, as printed in prereg v0.2.6 §11
+    "K1": "f6a13471a3d83b209e20d032e009f9b34ec8ccf08d4f35e00f076b3694901049",
+    "K2": "e6df04feb34214b662d882472345eb72a3f6fbbf2912083db34f19acfe67ca32",
+    "K3": "6c65a27b6f951633302cba21f4760ef6b7fd15fbfc52ba761a2fbaf09c973dd3",
+    "K4": "d8cb3193f9cd3a2d582a3f809da910e8dbe72c905bdfca29e5235d35c432bf6a",
+    "K5": "3adcfe25eaea80607375e1575e657b5270332cc1c5911212f1a4cadfbd86f804",
+    "K6": "6ff98382828faca48de0bc2ace1eb233043a48d660291cb9516cf4b85420c956",
+    "K7": "679708f452ee69dde496ddc5b381383ae02f410930f2dc19ef5406710a44f87f"}
+K_VIEWS = {
+    "K1": [], "K2": [["0", "profile_commit", "owner"]], "K3": [["1", "instance_commit", "owner"]],
+    "K4": [["2", "admission", "admitter-a"]], "K5": [["3", "closure", "owner"]],
+    "K6": [["4", "adjudication", "owner"]],
+    "K7": [["0", "profile_commit", "owner"], ["7", "instance_commit", "owner"],
+           ["10", "admission", "admitter-a"], ["123", "admission", "admitter-b"]]}
+
+
 def cmd_gen_differential():
     sys.dont_write_bytecode = True  # never write into the frozen vendored S1 tree
     sys.path.insert(0, str(S1_DIR / "scripts"))
     import p10tool  # frozen S1 tooling: jcs()
     def d(obj):
         return bytes.fromhex(sha(p10tool.jcs(obj)))
-    for name, data in (("D1/claim_digest.bin", d({"claim": "secondBit"})),
-                       ("D1/evidence_digest.bin", d({"evidence": "f0s0"})),
-                       ("D2/spec_digest.bin", bytes.fromhex(leaf_spec_digest()))):
+    out = [("D1/claim_digest.bin", d({"claim": "secondBit"})),
+           ("D1/evidence_digest.bin", d({"evidence": "f0s0"})),
+           ("D2/spec_digest.bin", bytes.fromhex(leaf_spec_digest()))]
+    for k, view in K_VIEWS.items():
+        dig = d({"preclosure_view": view})
+        if dig.hex() != PREREG_K[k]:
+            die(f"{k}: independent JCS digest {dig.hex()} != prereg value {PREREG_K[k]}")
+        out.append((f"{k}/digest.bin", dig))
+    for name, data in out:
         path = ROOT / "vectors" / name
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(data)
@@ -431,7 +453,17 @@ def cmd_leafspec():
         die("leafspec: too few pB files checked")
     if (ROOT / "vectors/D2/spec_digest.bin").read_bytes().hex() != want:
         die("D2 expected bytes differ from the recomputed spec digest")
-    print(f"leaf spec digest {want} matches {n} pB files and D2")
+    import struct
+    spec = (ROOT / LEAF_SPEC).read_text(encoding="utf-8")
+    fmt = b"application/scitt-statement+cose"
+    def leaf_hash(st):
+        li = b"P10-LeafEncodeV0\x00" + struct.pack(">I", len(fmt)) + fmt + struct.pack(">Q", len(st)) + st
+        return sha(b"\x00" + li)
+    for name, st in (("L1", b"\x00"), ("L2", b"\xd2"), ("L3", bytes.fromhex("d28440a0f640")),
+                     ("L4", bytes.fromhex("8440a0f640")), ("L5", bytes(range(256)))):
+        if leaf_hash(st) not in spec:
+            die(f"{name}: recomputed leaf hash is not the one printed in {LEAF_SPEC}")
+    print(f"leaf spec digest {want} matches {n} pB files and D2; L1-L5 leaf hashes recomputed")
 
 
 def cmd_matrix():
@@ -453,11 +485,11 @@ def cmd_matrix():
     hdr = ("id", "prereg", "cond", "expected (Lean)", "tb7", "status")
     for r in [hdr] + rows:
         print("  " + "  ".join(c.ljust(w[i]) for i, c in enumerate(r)))
-    need = {"P1", "P2", "P2x", "P3", "D1", "D2"} | {f"N{i}" for i in range(0, 37)}
+    need = {"P1", "P2", "P2x", "P3", "D1", "D2"} | {f"K{i}" for i in range(1, 9)} | {f"N{i}" for i in range(0, 37)}
     have = {r[0] for r in rows} | {re.sub(r"[a-z]$", "", r[0]) for r in rows}
     if not need <= have:
         die(f"missing preregistered vectors: {sorted(need - have)}")
-    print(f"matrix: {len(rows)} vectors (all preregistered P1-P3, P2x, N0-N36c, D1 present)")
+    print(f"matrix: {len(rows)} vectors (all preregistered P1-P3, P2x, N0-N36c, D1, K1-K8 present)")
 
 
 def main():

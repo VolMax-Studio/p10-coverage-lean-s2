@@ -116,8 +116,8 @@ harness, but not replayed a second time.
 
 ## v0.2.5 hardening — interpretations and deviations (prereg `e077c30e…`)
 
-- `PreclosureDigestV0`: kind tokens are the `Kind` constructor names (prereg leaves the kind string unspecified).
+- `PreclosureDigestV0` kind tokens: superseded by prereg v0.2.6 (K-1): the hashed tokens are `profile_commit`, `instance_commit`, `admission`, `closure`, `adjudication` (`kindTok`), checked by differential vectors K1–K8 against independent Python JCS.
 - Issuer/owner `iss` must lie in the token alphabet (`c1a_issuerNotToken`); `owner ∉ authorized_admitters` is enforced as `c1_ownerInAdmitters`. Extra vectors X9, X10.
-- `profile/LeafEncodeV0_SPEC.md` is authored by the implementation (prereg gives no content). It binds the frozen profile §2.4 definition (exact registered Signed Statement bytes + format/media-type identifier → RFC 9162 leaf input) and explicitly states that the frozen profile and prereg define no byte-level mapping; S2a only binds the artifact digest, executable conformance is S2b and needs a normative decision.
+- `profile/LeafEncodeV0_SPEC.md` is `LeafEncodeV0` spec v1 (wrapper mapping over the exact submitted COSE_Sign1 statement bytes and the single format id `application/scitt-statement+cose`; RFC 9162 leaf hash `SHA-256(0x00 || leaf_input)`), selected by the project owner and passed the text/spec gate (G7). It replaces the v0.2.5 placeholder (artifact digest `b9a8602f…`). S2a only binds its digest (`pB.leaf_encoding_spec_digest`); `scripts/s2a.py leafspec` recomputes the digest and the L1–L5 leaf hashes printed in the spec. Executing the mapping is S2b's obligation (L1–L8 are normative examples for S2b).
 - Kernel cost: each vector needs ~6 GB, so `verify.sh` builds vector modules two at a time; end-to-end vectors are split over `V_<id>`, `V_<id>_dig`, `V_<id>_e2e` (`e2eCheck_of_parts`, `runE2E_of_inst`).
 - D1/D2 expected bytes come from independent Python (`scripts/s2a.py gen-differential`, frozen S1 `p10tool` JCS; raw-bytes digest for D2).

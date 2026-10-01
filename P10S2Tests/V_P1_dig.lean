@@ -4,7 +4,7 @@ import P10S2Tests.V_P1
 namespace V_P1_dig
 open P10S2 P10S2Tests V_P1
 
-def tDigest : Bytes := hex% "54068c4be66a9b3ed89a2a9c0ce392da19b075ac2f5e8507b1fb954bce3bec3e"
+def tDigest : Bytes := hex% "5ce4de01073f9475cd7082e7fd7770f19533130e5fb28f6e2efe16479ab096b4"
 
 theorem hDig : P10.Sha256.sha256 tB = tDigest := by decide +kernel
 
