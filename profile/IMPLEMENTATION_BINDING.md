@@ -27,7 +27,7 @@ kind tokens of the v0.2.6 table.
 | §15 transcript codec laws | `P10S2/Codec.lean` (combinators, both laws), `P10S2/TranscriptCodec.lean` (`decode_encode_transcript`, `encode_decode_transcript`) |
 | §6a `ProfileArtifactS2V0` | `P10S2/ProfileArtifact.lean` (`decode_encode_profile`, `encode_decode_profile`) |
 | §13 fixture, bundle | `P10S2/Fixture.lean` (`fx`, `fx_projection`, `bundle_perm/dedup/faithful/refines`, truth table) |
-| §6, §7 classification, C1–C12 | `P10S2/Coverage.lean` (`coverageCheck`, `coverageCheckM`) |
+| §6, §7 classification, C1, C1a–C1c, C2–C13 | `P10S2/Coverage.lean` (`coverageCheck`, `coverageCheckM`) |
 | §8 | `P10S2/CoverageSpec.lean` (`coverage_sound`, `coverage_sound_view`, `TranscriptFaithful`) |
 | §9, §10 | `P10S2/Composition.lean` (`s2_end_to_end`, `p10Verdict*`, `e2eCheck`, `e2eCheck_sound`) |
 | §11, §12 | `vectors/`, `P10S2Tests/V_*.lean`, `P10S2TestsMustFail/` |
@@ -92,7 +92,7 @@ RelevantAdmission index" (vacuous when there is none).
 
 **I-8 — evaluation order.** §7 fixes only C1 before C2. Implemented: C1 (contiguity, row/detail
 correspondence, log identity, profile digest, strict `pB` decode, fixed fields, key-resolution
-digest, admitter-set digest), C2 (rows, subject payloads, key availability), then C3…C12 in table order.
+digest, admitter-set digest), C2 (rows, subject payloads, key availability), then C3…C13 in table order.
 
 **I-9 — N7 "checkpoint material missing".** `Transcript.checkpoint` is mandatory, so absence is
 not representable inside `coverageCheck`. `coverageCheckM` takes `Option Transcript`; `none` →
