@@ -17,11 +17,12 @@ status:                 RATIFIED / FROZEN S1
 - **The tag is immutable.** S2 depends on the tag `v0.1.0-s1-ratified`; the tag object, commit and
   tree are recorded so the dependency can be checked. If the tag ever resolved to another object,
   the dependency is broken and must not be silently re-pinned.
-- S1 is ratified by a human act. **S2 is not ratified.**
+- S1 is ratified by a human act. S2a is ratified at `v0.1.0-s2a-ratified`.
 - **How the dependency is realised.** `lakefile.toml` has one `[[require]]`, a `path` dependency on
   `vendor/p10-underdetermination-lean-s1/`, a byte-for-byte copy of the tag's tree (git tree id
-  above). S1 is a private repository and the S2a acceptance gate requires an offline-reproducible
-  result, so a `git` dependency was not used. `scripts/s2a.py s1-identity` (part of the acceptance
+  above). S1 is public; the vendored byte-for-byte copy is retained so S2a remains
+  offline-reproducible and bound to the exact ratified S1 tree rather than mutable repository state.
+  A `git` dependency is therefore not required. `scripts/s2a.py s1-identity` (part of the acceptance
   command) verifies the copy against S1's own `SHA256SUMS`, the pinned manifest digest and the git
   tree id. S1 semantics are not redefined; nothing in the vendored tree is edited.
 - Toolchain mirrored from S1: `leanprover/lean4:v4.33.0` (conda-forge `lean4 4.33.0 build

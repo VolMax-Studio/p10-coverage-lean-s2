@@ -1,8 +1,15 @@
 # p10-coverage-lean-s2 — P10 S2a (coverage / evidence-closure kernel)
 
-**Status: implementation of S2a under preregistration v0.2.6 (amending v0.2.5 and the accepted
-v0.2.4). Implementation checks and independent hosted CI only: this is not human ratification, and
-nothing here has been merged or tagged. S2b and S3 are not authorized and not present.**
+**Status: RATIFIED S2a release.**
+
+Human ratification:
+- tag: `v0.1.0-s2a-ratified`
+- ratified commit: `741d56d36d7b2bfe2e9e0080a1cba4393e4a47da`
+
+The ratified S2a implementation has been merged into `main`. Later maintenance commits do not alter
+the ratified artifact identified by the tag above.
+
+S2b and S3 are not authorized by this ratification and are not implemented here.
 
 S2a proves coverage properties **conditionally over a checkpoint-bound authenticated
 transcript**. Cryptographic authentication and production full-prefix replay belong to S2b and are

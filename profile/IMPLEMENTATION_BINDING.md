@@ -106,8 +106,9 @@ no `Lean.ofReduceBool`). The checker library's theorems use the three standard a
 (`profile/AXIOM_POLICY.md`); S1's stricter axiom-free policy is not claimed for S2a.
 
 **I-12 — S1 dependency.** Required at `v0.1.0-s1-ratified` as a Lake `path` dependency on a
-byte-for-byte copy of the tag's tree (`vendor/`, git tree id `6cdf48c2…` = the tag's tree),
-because S1 is a private repository (CI cannot clone it) and §15 requires offline reproduction.
+byte-for-byte copy of the tag's tree (`vendor/`, git tree id `6cdf48c2…` = the tag's tree).
+S1 is public; the vendored copy is retained because §15 requires offline reproduction and exact
+binding to the ratified S1 tree rather than mutable repository state.
 `s1-identity` re-verifies the copy against S1's own `SHA256SUMS`, the pinned S1 manifest digest
 and the git tree id. S1 is not modified.
 
